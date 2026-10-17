@@ -2,7 +2,8 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { forwardRef, useMemo, useRef } from "react";
-import { CalendarDays, Clock, Flag, FolderPlus, Hash, Repeat, Tag } from "lucide-react";
+import { CalendarDays, Clock, Flag, FolderPlus, Hash, Hourglass, Repeat, Tag } from "lucide-react";
+import { minutesLabel } from "@/lib/focus";
 import { Icon } from "@/components/ui/icon";
 import { spring } from "@/design/motion";
 import { cn } from "@/lib/cn";
@@ -15,6 +16,7 @@ const MARK: Record<TokenKind, string> = {
   priority: "bg-warning-soft text-ink",
   project: "bg-sunken text-ink ring-1 ring-line-strong ring-inset",
   label: "bg-sunken text-ink",
+  estimate: "bg-success-soft text-ink",
 };
 
 interface SmartInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, "onChange"> {
@@ -107,6 +109,7 @@ export function ParsedChips({
   else if (parsed.unknownProject) chips.push({ key: "newproj", icon: FolderPlus, text: `New project “${parsed.unknownProject}”` });
   else if (projectName) chips.push({ key: "proj", icon: Hash, text: projectName, implied: true });
   for (const l of parsed.labels) chips.push({ key: `l-${l.toLowerCase()}`, icon: Tag, text: l });
+  if (parsed.estimateMinutes) chips.push({ key: "est", icon: Hourglass, text: `~${minutesLabel(parsed.estimateMinutes)}` });
 
   return (
     <ul className="flex min-h-7 flex-wrap items-center gap-1.5" aria-live="polite" aria-label="Understood">

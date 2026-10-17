@@ -2,13 +2,15 @@ import { body, route } from "@/server/http";
 import { getTaskWithSubtasks, updateTask } from "@/server/tasks";
 import { updateTaskSchema } from "@/lib/validation";
 import { listReminders } from "@/server/notify";
+import { focusForTask } from "@/server/productivity";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export const GET = route<Ctx>(async (_req, userId, { params }) => {
   const { id } = await params;
   const detail = await getTaskWithSubtasks(userId, id);
-  return { ...detail, reminders: await listReminders(userId, id) };
+  const [reminders, focus] = await Promise.all([listReminders(userId, id), focusForTask(userId, id)]);
+  return { ...detail, reminders, focus };
 });
 
 export const PATCH = route<Ctx>(async (req, userId, { params }) =>

@@ -16,7 +16,7 @@ import { toISODate, type ISODate } from "../dates";
  *    highlight exactly what was understood, and the user can see why.
  */
 
-export type TokenKind = "date" | "priority" | "project" | "label" | "recurrence";
+export type TokenKind = "date" | "priority" | "project" | "label" | "recurrence" | "estimate";
 
 export interface Token {
   kind: TokenKind;
@@ -35,6 +35,8 @@ export interface ParsedTask {
   unknownProject: string | null;
   labels: string[];
   recurrence: { rrule: string; label: string } | null;
+  /** "~30m", "~1.5h", "~1h30" */
+  estimateMinutes: number | null;
   tokens: Token[];
 }
 
@@ -153,6 +155,18 @@ export function parseQuickAdd(input: string, opts: ParseOptions = {}): ParsedTas
     take("priority", m.index!, m.index! + m[0].length);
   }
 
+  // Estimate — "~45m", "~2h", "~1h30"
+  let estimateMinutes: number | null = null;
+  const em = masked.match(/(?<=^|\s)~(\d+(?:\.\d+)?)\s?(h|hrs?|hours?|m|mins?|minutes?)(?:\s?(\d{1,2})\s?(?:m|mins?)?)?(?=\s|$)/i);
+  if (em) {
+    const n = Number(em[1]);
+    const minutes = /^h/i.test(em[2]) ? n * 60 + Number(em[3] ?? 0) : n;
+    if (minutes > 0 && minutes <= 24 * 60) {
+      estimateMinutes = Math.round(minutes);
+      take("estimate", em.index!, em.index! + em[0].length);
+    }
+  }
+
   // Project — first #tag
   let project: ParsedTask["project"] = null;
   let unknownProject: string | null = null;
@@ -233,6 +247,7 @@ export function parseQuickAdd(input: string, opts: ParseOptions = {}): ParsedTas
     unknownProject,
     labels,
     recurrence: recurrence && { rrule: recurrence.rrule, label: recurrence.label },
+    estimateMinutes,
     tokens,
   };
 }

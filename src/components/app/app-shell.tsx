@@ -15,6 +15,7 @@ import { AppUIProvider, useAppUI } from "./app-ui";
 import { SidebarContent } from "./sidebar";
 import { NotificationWatcher } from "./notifications";
 import { CommandPalette } from "./command-palette";
+import { FocusProvider } from "@/components/focus/focus-provider";
 import { ShortcutsDialog } from "./shortcuts-dialog";
 import { useSettings, useSettingsActions } from "@/lib/data";
 import { refreshPushSubscription } from "@/lib/push";
@@ -24,7 +25,9 @@ type User = { name: string; email: string };
 export function AppShell({ user, children }: { user: User; children: React.ReactNode }) {
   return (
     <AppUIProvider>
-      <Shell user={user}>{children}</Shell>
+      <FocusProvider>
+        <Shell user={user}>{children}</Shell>
+      </FocusProvider>
     </AppUIProvider>
   );
 }
@@ -42,6 +45,8 @@ function Shell({ user, children }: { user: User; children: React.ReactNode }) {
     "g u": () => router.push("/upcoming"),
     "g c": () => router.push("/upcoming?layout=calendar"),
     "g s": () => router.push("/settings"),
+    "g f": () => router.push("/focus"),
+    "g h": () => router.push("/habits"),
     "/": () => openPalette(),
     "?": () => setShortcutsOpen(true),
   });

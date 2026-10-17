@@ -14,6 +14,7 @@ const t = (over: Partial<Task>): Task => ({
   dueDate: null,
   dueTime: null,
   recurrence: null,
+  estimateMinutes: null,
   sortKey: "a0",
   completedAt: null,
   createdAt: "2026-10-01T00:00:00Z",

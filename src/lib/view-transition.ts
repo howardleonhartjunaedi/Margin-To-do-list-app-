@@ -21,7 +21,13 @@ export function canViewTransition() {
  */
 export function withViewTransition(update: () => void) {
   if (!canViewTransition()) return update();
-  (document as Document & { startViewTransition: (cb: () => void) => unknown }).startViewTransition(() => flushSync(update));
+  type VT = { ready: Promise<void>; finished: Promise<void>; updateCallbackDone: Promise<void> };
+  const vt = (document as Document & { startViewTransition: (cb: () => void) => VT }).startViewTransition(() => flushSync(update));
+  // A transition interrupted by the next one is skipped by design, not an error.
+  const ignore = () => {};
+  vt.ready.catch(ignore);
+  vt.finished.catch(ignore);
+  vt.updateCallbackDone.catch(ignore);
 }
 
 /**

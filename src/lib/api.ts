@@ -1,4 +1,4 @@
-import type { Counts, Notification, Project, ReminderInfo, SavedFilter, SearchHit, Settings, Task, View } from "./types";
+import type { Counts, DayNote, Habit, Notification, Project, ReminderInfo, SavedFilter, SearchHit, Settings, Stats, Task, View } from "./types";
 import type { CreateTaskInput, UpdateTaskInput } from "./validation";
 
 export class ApiError extends Error {
@@ -45,7 +45,8 @@ export function viewParams(v: View): string {
 
 export const api = {
   tasks: (v: View) => request<Task[]>(`/api/tasks?${viewParams(v)}`),
-  task: (id: string) => request<{ task: Task; subtasks: Task[]; reminders: ReminderInfo[] }>(`/api/tasks/${id}`),
+  task: (id: string) =>
+    request<{ task: Task; subtasks: Task[]; reminders: ReminderInfo[]; focus: { minutes: number; sessions: number } }>(`/api/tasks/${id}`),
   createTask: (input: CreateTaskInput) => request<Task>("/api/tasks", { method: "POST", body: JSON.stringify(input) }),
   updateTask: (id: string, patch: UpdateTaskInput) =>
     request<Task>(`/api/tasks/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
@@ -86,4 +87,26 @@ export const api = {
   updateFilter: (id: string, patch: { name?: string; query?: string }) =>
     request<SavedFilter>(`/api/filters/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   deleteFilter: (id: string) => request<{ ok: true }>(`/api/filters/${id}`, { method: "DELETE" }),
+
+  recordFocus: (s: {
+    taskId: string | null;
+    kind: "focus" | "break";
+    plannedSeconds: number;
+    actualSeconds: number;
+    completed: boolean;
+    startedAt: string;
+    endedAt: string;
+  }) => request<{ id: string }>("/api/focus", { method: "POST", body: JSON.stringify(s), keepalive: true }),
+  habits: () => request<Habit[]>("/api/habits"),
+  createHabit: (h: { id: string; name: string; color?: string; targetPerWeek?: number }) =>
+    request<Habit[]>("/api/habits", { method: "POST", body: JSON.stringify(h) }),
+  updateHabit: (id: string, patch: { name?: string; color?: string; targetPerWeek?: number; archived?: boolean }) =>
+    request<Habit[]>(`/api/habits/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  deleteHabit: (id: string) => request<{ ok: true }>(`/api/habits/${id}`, { method: "DELETE" }),
+  setHabitCheck: (id: string, date: string, done: boolean) =>
+    request<{ ok: true }>(`/api/habits/${id}/checks`, { method: "PUT", body: JSON.stringify({ date, done }) }),
+  day: (date: string) => request<DayNote>(`/api/days/${date}`),
+  saveDay: (date: string, patch: Partial<Pick<DayNote, "intention" | "reflection" | "capacityMinutes">> & { planned?: boolean; reviewed?: boolean }) =>
+    request<DayNote>(`/api/days/${date}`, { method: "PUT", body: JSON.stringify(patch) }),
+  stats: (from: string, to: string) => request<Stats>(`/api/stats?from=${from}&to=${to}`),
 };

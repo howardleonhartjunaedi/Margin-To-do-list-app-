@@ -1,6 +1,9 @@
 "use client";
 
-import { Plus, Repeat, Trash2, X } from "lucide-react";
+import { Plus, Repeat, Timer, Trash2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useFocus } from "@/components/focus/focus-provider";
+import { minutesLabel } from "@/lib/focus";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { useAppUI } from "@/components/app/app-ui";
@@ -47,6 +50,8 @@ export function TaskDetailSheet() {
 function TaskDetail({ id }: { id: string }) {
   const { today, closeTask } = useAppUI();
   const q = useTaskDetail(id);
+  const focusCtl = useFocus();
+  const router = useRouter();
   const projects = useProjects().data ?? [];
   const actions = useTaskActions();
 
@@ -69,7 +74,7 @@ function TaskDetail({ id }: { id: string }) {
     );
   }
 
-  const { task, subtasks, reminders } = q.data;
+  const { task, subtasks, reminders, focus } = q.data;
   const project = projects.find((p) => p.id === task.projectId);
   const done = !!task.completedAt;
 
@@ -81,7 +86,19 @@ function TaskDetail({ id }: { id: string }) {
         <Button
           variant="ghost"
           size="sm"
-          className="ml-auto text-danger hover:bg-danger-soft hover:text-danger"
+          className="ml-auto"
+          onClick={() => {
+            focusCtl.start("focus", { id: task.id, title: task.title });
+            closeTask();
+            router.push("/focus");
+          }}
+        >
+          <Icon icon={Timer} /> Focus
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-danger hover:bg-danger-soft hover:text-danger"
           onClick={() => {
             closeTask();
             void actions.remove(task);
@@ -181,6 +198,32 @@ function TaskDetail({ id }: { id: string }) {
               }}
               className="h-8 w-full rounded-md bg-raised px-2 text-sm text-ink ring-1 ring-control ring-inset placeholder:text-ink-3"
             />
+          </dd>
+
+          <dt className="text-ink-2">
+            <label htmlFor="task-estimate">Estimate</label>
+          </dt>
+          <dd className="flex flex-wrap items-center gap-3">
+            <select
+              id="task-estimate"
+              value={task.estimateMinutes ?? ""}
+              onChange={(e) => void actions.update(task, { estimateMinutes: e.target.value ? Number(e.target.value) : null })}
+              className="h-8 rounded-md bg-raised px-2 text-sm text-ink ring-1 ring-control ring-inset"
+            >
+              <option value="">None</option>
+              {[...new Set([15, 30, 45, 60, 90, 120, 180, 240, ...(task.estimateMinutes ? [task.estimateMinutes] : [])])]
+                .sort((a, b) => a - b)
+                .map((m) => (
+                  <option key={m} value={m}>
+                    {minutesLabel(m)}
+                  </option>
+                ))}
+            </select>
+            {focus.minutes > 0 && (
+              <span className="font-mono text-2xs text-ink-3">
+                {minutesLabel(focus.minutes)} focused · {focus.sessions} {focus.sessions === 1 ? "session" : "sessions"}
+              </span>
+            )}
           </dd>
 
           <dt className="text-ink-2">

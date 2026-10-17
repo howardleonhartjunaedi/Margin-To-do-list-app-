@@ -1,6 +1,7 @@
 "use client";
 
-import { CalendarDays, Inbox, ListFilter, LogOut, Plus, Search, Settings, Sun } from "lucide-react";
+import { CalendarDays, ChartColumn, Inbox, ListFilter, LogOut, Plus, Repeat2, Search, Settings, Sun, Timer } from "lucide-react";
+import { FocusPill } from "@/components/focus/focus-view";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -72,6 +73,14 @@ export function SidebarContent({ user, onNavigate }: { user: { name: string; ema
           />
           <NavItem href="/upcoming" icon={CalendarDays} label="Upcoming" active={pathname === "/upcoming"} onNavigate={onNavigate} hint="G U" />
         </ul>
+        <ul className="mt-4 flex flex-col gap-0.5">
+          <NavItem href="/focus" icon={Timer} label="Focus" active={pathname === "/focus"} onNavigate={onNavigate} hint="G F" />
+          <NavItem href="/habits" icon={Repeat2} label="Habits" active={pathname === "/habits"} onNavigate={onNavigate} hint="G H" />
+          <NavItem href="/stats" icon={ChartColumn} label="Stats" active={pathname === "/stats"} onNavigate={onNavigate} />
+        </ul>
+        <div className="mt-2">
+          <FocusPill onNavigate={onNavigate} />
+        </div>
       </nav>
 
       <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto" data-lenis-prevent>

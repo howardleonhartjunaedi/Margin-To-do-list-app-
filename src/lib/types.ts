@@ -14,6 +14,7 @@ export interface Task {
   dueDate: ISODate | null;
   dueTime: string | null; // "HH:MM"
   recurrence: string | null; // RRULE body
+  estimateMinutes: number | null;
   sortKey: string;
   completedAt: string | null;
   createdAt: string;
@@ -81,6 +82,41 @@ export type View =
   | { kind: "range"; from: ISODate; to: ISODate; projectId?: string }
   /** Every open task (filters narrow it client-side). */
   | { kind: "all" };
+
+export interface Habit {
+  id: string;
+  name: string;
+  color: ProjectColor;
+  targetPerWeek: number;
+  sortKey: string;
+  createdOn: string;
+  checks: string[];
+}
+
+export interface DayNote {
+  date: string;
+  intention: string;
+  reflection: string;
+  capacityMinutes: number | null;
+  plannedAt: string | null;
+  reviewedAt: string | null;
+  load: { tasks: number; estimatedMinutes: number; unestimated: number };
+  completed: { id: string; title: string; completedAt: string }[];
+}
+
+export interface Stats {
+  from: string;
+  to: string;
+  today: string;
+  completedByDay: Record<string, number>;
+  focusMinutesByDay: Record<string, number>;
+  byHour: number[];
+  byProject: { projectId: string | null; name: string; color: string; n: number }[];
+  onTime: { onTime: number; late: number; undated: number };
+  previous: { completed: number; focusMinutes: number };
+  created: number;
+  activeDays: string[];
+}
 
 export interface SavedFilter {
   id: string;

@@ -132,8 +132,10 @@ export const task = pgTable(
     dueDate: date({ mode: "string" }),
     /** Optional wall-clock time, "HH:MM". */
     dueTime: time({ precision: 0 }),
-    /** RFC 5545 RRULE body, e.g. "FREQ=WEEKLY;BYDAY=MO". Scheduling lands in Phase 2. */
+    /** RFC 5545 RRULE body, e.g. "FREQ=WEEKLY;BYDAY=MO". */
     recurrence: text(),
+    /** Rough size of the task, for planning a day ("~30m"). */
+    estimateMinutes: integer(),
     sortKey: text().notNull(),
     completedAt: timestamp({ withTimezone: true }),
     /** Soft delete so Undo can restore; purged by a job later. */
@@ -301,6 +303,80 @@ export const savedFilter = pgTable(
     ...timestamps,
   },
   (t) => [index().on(t.userId, t.sortKey)],
+);
+
+/* ------------------------------ Productivity ------------------------------ */
+
+/** A finished (or abandoned) focus or break interval. Running timers live on the client. */
+export const focusSession = pgTable(
+  "focus_session",
+  {
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    taskId: text().references(() => task.id, { onDelete: "set null" }),
+    kind: text().notNull().default("focus"), // "focus" | "break"
+    plannedSeconds: integer().notNull(),
+    actualSeconds: integer().notNull(),
+    completed: boolean().notNull(), // ran to the end vs stopped early
+    startedAt: timestamp({ withTimezone: true }).notNull(),
+    endedAt: timestamp({ withTimezone: true }).notNull(),
+  },
+  (t) => [index().on(t.userId, t.startedAt)],
+);
+
+export const habit = pgTable(
+  "habit",
+  {
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text().notNull(),
+    color: text().notNull().default("ink"),
+    /** Days per week to count as "kept": 7 = daily, 3 = three times a week. */
+    targetPerWeek: smallint().notNull().default(7),
+    sortKey: text().notNull(),
+    archivedAt: timestamp({ withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [index().on(t.userId, t.sortKey)],
+);
+
+export const habitCheck = pgTable(
+  "habit_check",
+  {
+    habitId: text()
+      .notNull()
+      .references(() => habit.id, { onDelete: "cascade" }),
+    date: date({ mode: "string" }).notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.habitId, t.date] })],
+);
+
+/** One row per user per local day: the morning plan and the evening review. */
+export const dailyNote = pgTable(
+  "daily_note",
+  {
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    date: date({ mode: "string" }).notNull(),
+    intention: text().notNull().default(""),
+    reflection: text().notNull().default(""),
+    /** Hours the user said they have for tasks today. */
+    capacityMinutes: integer(),
+    plannedAt: timestamp({ withTimezone: true }),
+    reviewedAt: timestamp({ withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.date] })],
 );
 
 /* ------------------------------ Relations ------------------------------ */

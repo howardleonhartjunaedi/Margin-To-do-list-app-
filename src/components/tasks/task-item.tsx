@@ -19,6 +19,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { duration, ease } from "@/design/motion";
 import { cn } from "@/lib/cn";
 import { formatDue, formatTime } from "@/lib/dates";
+import { minutesLabel } from "@/lib/focus";
 import { projectDot } from "@/lib/project-colors";
 import type { Priority, Project, Task, View } from "@/lib/types";
 import { ReschedulePopover, type DateChoice } from "./reschedule";
@@ -192,6 +193,11 @@ function Meta({
         <Icon icon={ListChecks} size="xs" />
         {task.subtaskDone}/{task.subtaskCount}
         <span className="sr-only"> subtasks done</span>
+      </span>
+    ),
+    task.estimateMinutes && (
+      <span key="est" className="font-mono text-2xs text-ink-3">
+        ~{minutesLabel(task.estimateMinutes)}
       </span>
     ),
     task.notes && <Icon key="notes" icon={AlignLeft} size="xs" label="Has notes" className="text-ink-3" />,

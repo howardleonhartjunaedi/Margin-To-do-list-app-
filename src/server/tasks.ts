@@ -38,6 +38,7 @@ const taskColumns = {
   dueDate: task.dueDate,
   dueTime: task.dueTime,
   recurrence: task.recurrence,
+  estimateMinutes: task.estimateMinutes,
   sortKey: task.sortKey,
   completedAt: task.completedAt,
   createdAt: task.createdAt,
@@ -61,6 +62,7 @@ function toTask(r: RawTask): Task {
     dueDate: (r.dueDate as string) ?? null,
     dueTime: r.dueTime ? String(r.dueTime).slice(0, 5) : null,
     recurrence: (r.recurrence as string) ?? null,
+    estimateMinutes: (r.estimateMinutes as number) ?? null,
     sortKey: r.sortKey as string,
     completedAt: iso(r.completedAt),
     createdAt: iso(r.createdAt)!,
@@ -200,6 +202,7 @@ export async function createTask(userId: string, input: CreateTaskInput): Promis
         dueDate: input.dueDate ?? null,
         dueTime: input.dueTime ?? null,
         recurrence: input.recurrence ?? null,
+        estimateMinutes: input.estimateMinutes ?? null,
         sortKey,
       })
       .returning({ id: task.id });

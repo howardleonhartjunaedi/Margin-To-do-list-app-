@@ -30,6 +30,8 @@ export interface ScopeProps {
   boardGroupByProject?: boolean;
   savedFilter?: { id: string; query: string };
   hideProjectFilter?: boolean;
+  /** Shown between the header and the tasks (Today: intention, habits). */
+  intro?: React.ReactNode;
 }
 
 /**
@@ -90,6 +92,7 @@ export function ScopeView(p: ScopeProps) {
         }
       />
       <ActiveFilters filter={filter} onChange={setFilter} savedId={p.savedFilter?.id} savedQuery={p.savedFilter?.query} />
+      {p.intro}
       <LayoutBody layout={layout}>{body}</LayoutBody>
     </div>
   );

@@ -28,6 +28,8 @@ export function shortcutGroups(): { title: string; items: Shortcut[] }[] {
         { keys: ["G", "T"], sequence: true, label: "Today" },
         { keys: ["G", "U"], sequence: true, label: "Upcoming" },
         { keys: ["G", "C"], sequence: true, label: "Calendar" },
+        { keys: ["G", "F"], sequence: true, label: "Focus timer" },
+        { keys: ["G", "H"], sequence: true, label: "Habits" },
         { keys: ["G", "S"], sequence: true, label: "Settings" },
       ],
     },
@@ -72,5 +74,6 @@ export const QUICK_ADD_SYNTAX: [string, string][] = [
   ["p1", "priority"],
   ["#home", "project"],
   ["@calls", "label"],
+  ["~45m", "estimate"],
   ['"May"', "quotes keep words literal"],
 ];

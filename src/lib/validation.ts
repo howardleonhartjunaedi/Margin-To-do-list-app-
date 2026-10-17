@@ -18,6 +18,7 @@ export const createTaskSchema = z.object({
   dueDate: isoDate.nullable().optional(),
   dueTime: hhmm.nullable().optional(),
   recurrence: rrule.nullable().optional(),
+  estimateMinutes: z.number().int().min(1).max(1440).nullable().optional(),
   labels: labels.optional(),
 });
 
@@ -31,6 +32,7 @@ export const updateTaskSchema = z
     dueDate: isoDate.nullable(),
     dueTime: hhmm.nullable(),
     recurrence: rrule.nullable(),
+    estimateMinutes: z.number().int().min(1).max(1440).nullable(),
     labels,
     sortKey: z.string().min(1).max(200),
     completed: z.boolean(),
@@ -106,6 +108,42 @@ export const pushSubscriptionSchema = z.object({
   endpoint: z.url().max(2000),
   keys: z.object({ p256dh: z.string().min(1).max(500), auth: z.string().min(1).max(500) }),
 });
+
+export const focusSessionSchema = z.object({
+  taskId: z.string().nullable().optional(),
+  kind: z.enum(["focus", "break"]),
+  plannedSeconds: z.number().int().min(60).max(4 * 3600),
+  actualSeconds: z.number().int().min(0).max(8 * 3600),
+  completed: z.boolean(),
+  startedAt: z.iso.datetime({ offset: true }),
+  endedAt: z.iso.datetime({ offset: true }),
+});
+
+export const habitSchema = z.object({
+  id: z.uuid().optional(),
+  name: z.string().trim().min(1, "A habit needs a name.").max(80),
+  color: z.enum(["ink", "accent", "p1", "p2", "p3", "success"]).optional(),
+  targetPerWeek: z.number().int().min(1).max(7).optional(),
+});
+
+export const habitPatchSchema = habitSchema
+  .omit({ id: true })
+  .partial()
+  .extend({ sortKey: z.string().min(1).max(200).optional(), archived: z.boolean().optional() });
+
+export const habitCheckSchema = z.object({ date: isoDate, done: z.boolean() });
+
+export const dayPatchSchema = z
+  .object({
+    intention: z.string().max(2000),
+    reflection: z.string().max(5000),
+    capacityMinutes: z.number().int().min(0).max(1440).nullable(),
+    planned: z.boolean(),
+    reviewed: z.boolean(),
+  })
+  .partial();
+
+export const isoDateSchema = isoDate;
 
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;

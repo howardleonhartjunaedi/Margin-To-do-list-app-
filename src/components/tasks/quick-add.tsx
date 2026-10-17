@@ -85,6 +85,7 @@ function QuickAddForm({
       dueTime: dueDate ? parsed.dueTime : null,
       priority: parsed.priority < 4 ? parsed.priority : (defaults.priority ?? 4),
       recurrence: parsed.recurrence?.rrule ?? null,
+      estimateMinutes: parsed.estimateMinutes,
       labels: parsed.labels,
     });
   };

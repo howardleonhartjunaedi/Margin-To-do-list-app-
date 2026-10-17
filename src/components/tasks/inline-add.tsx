@@ -43,6 +43,7 @@ export function InlineAdd({ projectId, dueDate }: { projectId?: string | null; d
       dueTime: due ? parsed.dueTime : null,
       priority: parsed.priority,
       recurrence: parsed.recurrence?.rrule ?? null,
+      estimateMinutes: parsed.estimateMinutes,
       labels: parsed.labels,
     });
     setText("");

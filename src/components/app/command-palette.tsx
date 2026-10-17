@@ -4,6 +4,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Command } from "cmdk";
 import {
   CalendarDays,
+  ChartColumn,
   Columns3,
   CornerDownLeft,
   FolderPlus,
@@ -14,9 +15,12 @@ import {
   LogOut,
   Moon,
   Plus,
+  Repeat2,
   Search,
   Settings,
   Sun,
+  Sunrise,
+  Timer,
   type LucideIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -110,6 +114,11 @@ export function CommandPalette() {
       { id: "matrix", label: "Eisenhower matrix", icon: Columns3, keywords: "priorities urgent important", run: go("/today?layout=matrix") },
       ...projects.map((p) => ({ id: `p-${p.id}`, label: p.name, dot: projectDot(p.color), hint: "Project", run: go(`/project/${p.id}`) })),
       ...filters.map((f) => ({ id: `f-${f.id}`, label: f.name, icon: ListFilter, hint: "Filter", run: go(`/filter/${f.id}`) })),
+      { id: "focus", label: "Focus timer", icon: Timer, hint: "G F", keywords: "pomodoro concentrate", run: go("/focus") },
+      { id: "habits", label: "Habits", icon: Repeat2, hint: "G H", keywords: "routine streak", run: go("/habits") },
+      { id: "stats", label: "Stats", icon: ChartColumn, keywords: "statistics productivity charts", run: go("/stats") },
+      { id: "plan", label: "Plan my day", icon: Sunrise, keywords: "morning planning", run: go("/plan") },
+      { id: "review", label: "Review my day", icon: Moon, keywords: "evening reflection", run: go("/review") },
       { id: "settings", label: "Settings", icon: Settings, hint: "G S", keywords: "reminders notifications quiet digest time zone", run: go("/settings") },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -181,6 +181,7 @@ export function useTaskActions() {
         dueDate: input.dueDate ?? null,
         dueTime: input.dueTime ?? null,
         recurrence: input.recurrence ?? null,
+        estimateMinutes: input.estimateMinutes ?? null,
         sortKey: "￿", // sorts last until the server assigns the real key
         completedAt: null,
         createdAt: new Date().toISOString(),

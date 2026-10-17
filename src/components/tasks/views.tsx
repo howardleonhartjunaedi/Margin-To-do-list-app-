@@ -6,6 +6,8 @@ import { useMemo, useState } from "react";
 import { useAppUI } from "@/components/app/app-ui";
 import { ProjectForm } from "@/components/app/project-form";
 import { ScopeView } from "@/components/views/scope";
+import { DayPrompt } from "@/components/day/day-flows";
+import { TodayHabits } from "@/components/habits/habits-view";
 import { Kbd } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogFooter } from "@/components/ui/dialog";
@@ -48,6 +50,12 @@ export function TodayView() {
       layouts={["list", "board", "matrix"]}
       listView={view}
       boardGroupByProject
+      intro={
+        <>
+          <DayPrompt />
+          <TodayHabits />
+        </>
+      }
       renderList={(tasks) => {
         const overdue = tasks.filter((t) => t.dueDate! < today);
         const due = tasks.filter((t) => t.dueDate === today);
