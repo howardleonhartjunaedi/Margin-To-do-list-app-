@@ -1,0 +1,58 @@
+// Verifies every text/UI color pairing in globals.css meets WCAG AA in both themes.
+// Run: npm run contrast   (exits 1 on any failure)
+import { readFileSync } from "node:fs";
+
+const css = readFileSync(new URL("../src/app/globals.css", import.meta.url), "utf8");
+
+function block(selector) {
+  const start = css.indexOf(`${selector} {`);
+  const body = css.slice(start, css.indexOf("\n}", start));
+  const out = {};
+  for (const m of body.matchAll(/--c-([\w-]+):\s*(#[0-9a-f]{6});/gi)) out[m[1]] = m[2];
+  return out;
+}
+
+const lum = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+export const ratio = (a, b) => {
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+const grounds = ["bg", "surface", "raised", "sunken"];
+const checks = [
+  // [foreground, backgrounds, minimum]
+  ...["ink", "ink-2", "ink-3"].map((f) => [f, grounds, 4.5]),
+  ["accent", ["bg", "surface", "raised", "accent-soft"], 4.5],
+  ["ink", ["accent-soft", "success-soft", "warning-soft", "danger-soft"], 4.5],
+  ["accent-ink", ["accent", "accent-hover"], 4.5],
+  ["success", ["bg", "surface", "raised", "success-soft"], 4.5],
+  ["warning", ["bg", "surface", "raised", "warning-soft"], 4.5],
+  ["danger", ["bg", "surface", "raised", "danger-soft"], 4.5],
+  ...["p1", "p2", "p3", "p4"].map((f) => [f, ["bg", "surface", "raised"], 4.5]),
+  // Non-text UI (control borders, focus ring): 3:1. line/line-strong are decorative dividers.
+  ["control", ["bg", "surface", "raised"], 3],
+  ["focus", ["bg", "surface", "raised"], 3],
+];
+
+let failed = 0;
+for (const [name, sel] of [["light", ":root"], ["dark", '[data-theme="dark"]']]) {
+  const t = block(sel);
+  console.log(`\n${name}`);
+  for (const [fg, bgs, min] of checks) {
+    for (const bg of bgs) {
+      const r = ratio(t[fg], t[bg]);
+      const ok = r >= min;
+      if (!ok) failed++;
+      if (!ok || process.argv.includes("--all"))
+        console.log(`  ${ok ? "ok  " : "FAIL"} ${fg.padEnd(12)} on ${bg.padEnd(13)} ${r.toFixed(2)} (min ${min})`);
+    }
+  }
+}
+console.log(failed ? `\n${failed} pairing(s) below AA` : "\nAll pairings pass WCAG AA in both themes.");
+process.exit(failed ? 1 : 0);

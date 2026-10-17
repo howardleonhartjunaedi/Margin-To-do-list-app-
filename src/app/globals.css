@@ -1,0 +1,306 @@
+@import "tailwindcss";
+
+/*
+ * Margin design tokens Ã¢â‚¬â€ the single source of truth.
+ * Screens use only these. Tailwind's default palette, radii and shadows are
+ * cleared below so an off-system value fails to compile instead of slipping in.
+ * scripts/check-contrast.mjs parses the two theme blocks; keep them flat.
+ */
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* ---------- Theme: light (warm paper) ---------- */
+:root {
+  color-scheme: light;
+
+  --c-bg: #f6f2ea;
+  --c-surface: #fbf9f4;
+  --c-raised: #fffefb;
+  --c-sunken: #eee9df;
+  --c-line: #e0d9cb;
+  --c-line-strong: #c9bfac;
+  --c-control: #8c8272;
+
+  --c-ink: #1d1b18;
+  --c-ink-2: #48433b;
+  --c-ink-3: #6b6458;
+
+  --c-accent: #b93a17;
+  --c-accent-hover: #a1310f;
+  --c-accent-ink: #fff8f2;
+  --c-accent-soft: #f6e2d6;
+
+  --c-success: #2c6a3a;
+  --c-success-soft: #dfeadb;
+  --c-warning: #8a5300;
+  --c-warning-soft: #f3e6cc;
+  --c-danger: #a3202f;
+  --c-danger-soft: #f5dcdc;
+
+  --c-p1: #a3202f;
+  --c-p2: #8a5300;
+  --c-p3: #335686;
+  --c-p4: #6b6458;
+
+  --c-focus: #b93a17;
+  --c-scrim: rgb(29 27 24 / 0.32);
+
+  --sh-1: 0 1px 0 rgb(60 45 25 / 0.06), 0 1px 2px rgb(60 45 25 / 0.06);
+  --sh-2: 0 1px 0 rgb(60 45 25 / 0.04), 0 6px 16px -4px rgb(60 45 25 / 0.14);
+  --sh-3: 0 2px 0 rgb(60 45 25 / 0.04), 0 18px 40px -12px rgb(60 45 25 / 0.28);
+}
+
+/* ---------- Theme: dark (warm charcoal, never pure black) ---------- */
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --c-bg: #1b1916;
+  --c-surface: #22201c;
+  --c-raised: #2b2824;
+  --c-sunken: #161412;
+  --c-line: #3a3630;
+  --c-line-strong: #534d45;
+  --c-control: #81796c;
+
+  --c-ink: #efe9df;
+  --c-ink-2: #c6beb1;
+  --c-ink-3: #9f9688;
+
+  --c-accent: #f27b55;
+  --c-accent-hover: #f6916f;
+  --c-accent-ink: #1b1916;
+  --c-accent-soft: #432419;
+
+  --c-success: #82c290;
+  --c-success-soft: #22352a;
+  --c-warning: #e2b35e;
+  --c-warning-soft: #3d311c;
+  --c-danger: #f28a85;
+  --c-danger-soft: #45221f;
+
+  --c-p1: #f28a85;
+  --c-p2: #e2b35e;
+  --c-p3: #94b3e2;
+  --c-p4: #9f9688;
+
+  --c-focus: #f27b55;
+  --c-scrim: rgb(0 0 0 / 0.5);
+
+  --sh-1: 0 1px 0 rgb(0 0 0 / 0.3);
+  --sh-2: 0 1px 0 rgb(255 245 230 / 0.04) inset, 0 8px 20px -6px rgb(0 0 0 / 0.5);
+  --sh-3: 0 1px 0 rgb(255 245 230 / 0.05) inset, 0 22px 48px -12px rgb(0 0 0 / 0.6);
+}
+
+/* ---------- Tailwind theme: map tokens to utilities ---------- */
+@theme {
+  --color-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --font-*: initial;
+  --text-*: initial;
+  --ease-*: initial;
+
+  /* 4pt base grid: p-1 = 4px, p-2 = 8px, p-4 = 16px Ã¢â‚¬Â¦ */
+  --spacing: 0.25rem;
+
+  /* Two radii, plus rounded-full for true circles (dots, avatars, switch thumbs) */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+
+  /* Modular scale, ratio 1.25 (major third), base 16px */
+  --text-2xs: 0.6875rem; /* 11 Ã¢â‚¬â€ mono meta only */
+  --text-2xs--line-height: 1rem;
+  --text-2xs--letter-spacing: 0.02em;
+  --text-xs: 0.8125rem; /* 13 */
+  --text-xs--line-height: 1.125rem;
+  --text-xs--letter-spacing: 0.005em;
+  --text-sm: 0.875rem; /* 14 */
+  --text-sm--line-height: 1.25rem;
+  --text-base: 1rem; /* 16 */
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.25rem; /* 20 */
+  --text-lg--line-height: 1.75rem;
+  --text-lg--letter-spacing: -0.005em;
+  --text-xl: 1.5625rem; /* 25 */
+  --text-xl--line-height: 2rem;
+  --text-xl--letter-spacing: -0.01em;
+  --text-2xl: 1.953rem; /* 31 */
+  --text-2xl--line-height: 2.375rem;
+  --text-2xl--letter-spacing: -0.015em;
+  --text-3xl: 2.441rem; /* 39 */
+  --text-3xl--line-height: 2.75rem;
+  --text-3xl--letter-spacing: -0.02em;
+  --text-4xl: 3.052rem; /* 49 */
+  --text-4xl--line-height: 3.25rem;
+  --text-4xl--letter-spacing: -0.025em;
+  --text-5xl: 3.815rem; /* 61 */
+  --text-5xl--line-height: 3.875rem;
+  --text-5xl--letter-spacing: -0.03em;
+
+  /* Named easings */
+  --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-move: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-exit: cubic-bezier(0.55, 0, 1, 0.45);
+  /* The "pop" spring (stiffness 380, damping 26, mass 0.8) sampled for CSS. */
+  --ease-spring: linear(0, 0.067, 0.204, 0.375, 0.534, 0.673, 0.787, 0.875, 0.941, 0.983, 1.008, 1.022, 1.027, 1.027, 1.025, 1.02, 1.016, 1.011, 1.008, 1.005, 1.003, 1.001, 1);
+
+  --animate-pop-in: pop-in var(--dur-slow) var(--ease-spring) both;
+  --animate-pop-out: pop-out var(--dur-fast) var(--ease-exit) both;
+  --animate-fade-in: fade-in var(--dur-base) var(--ease-enter) both;
+  --animate-fade-out: fade-out var(--dur-fast) var(--ease-exit) both;
+
+  @keyframes pop-in {
+    from { opacity: 0; transform: scale(var(--pop-scale, 0.96)) translateY(var(--pop-y, 0px)); }
+  }
+  @keyframes pop-out {
+    to { opacity: 0; transform: scale(0.97); }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+  }
+  @keyframes fade-out {
+    to { opacity: 0; }
+  }
+
+  --breakpoint-xs: 22.5rem; /* 360px */
+}
+
+@theme inline {
+  --color-bg: var(--c-bg);
+  --color-surface: var(--c-surface);
+  --color-raised: var(--c-raised);
+  --color-sunken: var(--c-sunken);
+  --color-line: var(--c-line);
+  --color-line-strong: var(--c-line-strong);
+  --color-control: var(--c-control);
+  --color-ink: var(--c-ink);
+  --color-ink-2: var(--c-ink-2);
+  --color-ink-3: var(--c-ink-3);
+  --color-accent: var(--c-accent);
+  --color-accent-hover: var(--c-accent-hover);
+  --color-accent-ink: var(--c-accent-ink);
+  --color-accent-soft: var(--c-accent-soft);
+  --color-success: var(--c-success);
+  --color-success-soft: var(--c-success-soft);
+  --color-warning: var(--c-warning);
+  --color-warning-soft: var(--c-warning-soft);
+  --color-danger: var(--c-danger);
+  --color-danger-soft: var(--c-danger-soft);
+  --color-p1: var(--c-p1);
+  --color-p2: var(--c-p2);
+  --color-p3: var(--c-p3);
+  --color-p4: var(--c-p4);
+  --color-focus: var(--c-focus);
+  --color-scrim: var(--c-scrim);
+
+  --shadow-1: var(--sh-1);
+  --shadow-2: var(--sh-2);
+  --shadow-3: var(--sh-3);
+
+  --font-display: var(--font-newsreader), "Iowan Old Style", Georgia, serif;
+  --font-sans: var(--font-schibsted), "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, "Cascadia Mono", monospace;
+}
+
+/* ---------- Motion tokens (CSS side; JS mirror in src/design/motion.ts) ---------- */
+:root {
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+  --dur-page: 450ms;
+}
+[data-motion="reduced"] {
+  --dur-slow: 200ms;
+  --dur-page: 200ms;
+}
+[data-motion="off"] {
+  --dur-fast: 0ms;
+  --dur-base: 0ms;
+  --dur-slow: 0ms;
+  --dur-page: 0ms;
+}
+/* Reduced: overlays fade instead of scaling. */
+[data-motion="reduced"] [class*="animate-pop-in"] {
+  animation-name: fade-in;
+}
+[data-motion="reduced"] [class*="animate-pop-out"] {
+  animation-name: fade-out;
+}
+[data-motion="off"] *,
+[data-motion="off"] *::before,
+[data-motion="off"] *::after {
+  animation-duration: 0ms !important;
+  transition-duration: 0ms !important;
+}
+
+/* ---------- Base ---------- */
+@layer base {
+  html {
+    background: var(--c-bg);
+    color: var(--c-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "ss01", "cv11";
+  }
+  body {
+    min-height: 100dvh;
+    background: var(--c-bg);
+  }
+  ::selection {
+    background: var(--c-accent-soft);
+    color: var(--c-ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--c-focus);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+  .font-mono,
+  time {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Lenis */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: clip;
+}
+
+/* Custom cursor: hide the native one only where ours is drawn */
+html[data-cursor="custom"],
+html[data-cursor="custom"] * {
+  cursor: none;
+}
+html[data-cursor="custom"] :is(input, textarea, select, [contenteditable="true"], [data-cursor="native"]),
+html[data-cursor="custom"] :is([data-cursor="native"]) * {
+  cursor: auto;
+}
+html[data-cursor="custom"] :is(input, textarea, [contenteditable="true"]) {
+  cursor: text;
+}
+
+/* Skeleton shimmer Ã¢â‚¬â€ opacity only, no layout */
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.skeleton {
+  background: var(--c-sunken);
+  border-radius: var(--radius-sm);
+  animation: skeleton-pulse 1.6s var(--ease-move) infinite;
+}
+[data-motion="reduced"] .skeleton,
+[data-motion="off"] .skeleton {
+  animation: none;
+}
