@@ -126,6 +126,8 @@ export const task = pgTable(
     notes: text().notNull().default(""),
     /** 1 = urgent … 4 = someday */
     priority: smallint().notNull().default(4),
+    /** Optional start date; with dueDate it gives the task a span on the timeline. */
+    startDate: date({ mode: "string" }),
     /** Calendar date in the user's own timezone (no instant). */
     dueDate: date({ mode: "string" }),
     /** Optional wall-clock time, "HH:MM". */
@@ -281,6 +283,24 @@ export const completion = pgTable(
     completedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index().on(t.userId, t.completedAt)],
+);
+
+/** A named filter in the sidebar. `query` uses the same encoding as the ?f= URL param (src/lib/filters.ts). */
+export const savedFilter = pgTable(
+  "saved_filter",
+  {
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text().notNull(),
+    query: text().notNull(),
+    sortKey: text().notNull(),
+    ...timestamps,
+  },
+  (t) => [index().on(t.userId, t.sortKey)],
 );
 
 /* ------------------------------ Relations ------------------------------ */

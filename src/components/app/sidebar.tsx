@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Inbox, LogOut, Plus, Settings, Sun } from "lucide-react";
+import { CalendarDays, Inbox, ListFilter, LogOut, Plus, Search, Settings, Sun } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -25,10 +25,12 @@ import { projectDot } from "@/lib/project-colors";
 import { useAppUI } from "./app-ui";
 import { DisplaySettings } from "./display-settings";
 import { NotificationsButton } from "./notifications";
+import { useSavedFilters } from "@/lib/data-filters";
+import { isMac } from "@/lib/shortcuts";
 import { ProjectForm } from "./project-form";
 
 export function SidebarContent({ user, onNavigate }: { user: { name: string; email: string }; onNavigate?: () => void }) {
-  const { today, openQuickAdd } = useAppUI();
+  const { today, openQuickAdd, openPalette } = useAppUI();
   const counts = useCounts(today).data;
   const projects = useProjects();
   const pathname = usePathname();
@@ -45,6 +47,15 @@ export function SidebarContent({ user, onNavigate }: { user: { name: string; ema
         <Icon icon={Plus} /> Add task
         <Kbd className="ml-auto bg-transparent text-accent-ink/80 shadow-none ring-accent-ink/30">Q</Kbd>
       </Button>
+
+      <button
+        onClick={() => (onNavigate?.(), openPalette())}
+        className="-mt-3 flex h-9 items-center gap-3 rounded-md px-2 text-sm text-ink-2 transition-colors duration-(--dur-fast) hover:bg-sunken/60 hover:text-ink"
+      >
+        <Icon icon={Search} />
+        <span className="flex-1 text-left">Search</span>
+        <Kbd>{isMac() ? "⌘K" : "Ctrl K"}</Kbd>
+      </button>
 
       <nav aria-label="Views">
         <ul className="flex flex-col gap-0.5">
@@ -63,7 +74,8 @@ export function SidebarContent({ user, onNavigate }: { user: { name: string; ema
         </ul>
       </nav>
 
-      <section aria-labelledby="projects-h" className="min-h-0 flex-1 overflow-y-auto" data-lenis-prevent>
+      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto" data-lenis-prevent>
+      <section aria-labelledby="projects-h">
         <div className="mb-1 flex items-center justify-between px-2">
           <h2 id="projects-h" className="font-mono text-2xs tracking-wider text-ink-3 uppercase">
             Projects
@@ -94,6 +106,8 @@ export function SidebarContent({ user, onNavigate }: { user: { name: string; ema
           )}
         </ul>
       </section>
+      <FiltersSection pathname={pathname} onNavigate={onNavigate} />
+      </div>
 
       <div className="flex items-center gap-1 border-t border-line pt-3">
         <UserMenu user={user} />
@@ -162,6 +176,30 @@ function NavItem({
     </Link>
   );
   return <li>{hint ? <Tooltip content={label} shortcut={hint.split(" ")} side="right">{link}</Tooltip> : link}</li>;
+}
+
+function FiltersSection({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+  const filters = useSavedFilters().data;
+  if (!filters?.length) return null;
+  return (
+    <section aria-labelledby="filters-h">
+      <h2 id="filters-h" className="mb-1 px-2 font-mono text-2xs tracking-wider text-ink-3 uppercase">
+        Filters
+      </h2>
+      <ul className="flex flex-col gap-0.5">
+        {filters.map((f) => (
+          <NavItem
+            key={f.id}
+            href={`/filter/${f.id}`}
+            icon={ListFilter}
+            label={f.name}
+            active={pathname === `/filter/${f.id}`}
+            onNavigate={onNavigate}
+          />
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 function NewProjectButton() {

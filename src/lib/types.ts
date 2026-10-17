@@ -10,6 +10,7 @@ export interface Task {
   title: string;
   notes: string;
   priority: Priority;
+  startDate: ISODate | null;
   dueDate: ISODate | null;
   dueTime: string | null; // "HH:MM"
   recurrence: string | null; // RRULE body
@@ -75,4 +76,27 @@ export type View =
   | { kind: "inbox" }
   | { kind: "today"; today: ISODate }
   | { kind: "upcoming"; today: ISODate; to: ISODate }
-  | { kind: "project"; id: string };
+  | { kind: "project"; id: string }
+  /** Open tasks whose date (or start–due span) touches [from, to], optionally one project. */
+  | { kind: "range"; from: ISODate; to: ISODate; projectId?: string }
+  /** Every open task (filters narrow it client-side). */
+  | { kind: "all" };
+
+export interface SavedFilter {
+  id: string;
+  name: string;
+  query: string;
+  sortKey: string;
+}
+
+export interface SearchHit {
+  id: string;
+  title: string;
+  parentId: string | null;
+  projectId: string | null;
+  dueDate: ISODate | null;
+  completed: boolean;
+  /** Where the match was: the title or the notes. */
+  field: "title" | "notes";
+  snippet: string | null;
+}

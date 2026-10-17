@@ -1,4 +1,4 @@
-import type { Counts, Notification, Project, ReminderInfo, Settings, Task, View } from "./types";
+import type { Counts, Notification, Project, ReminderInfo, SavedFilter, SearchHit, Settings, Task, View } from "./types";
 import type { CreateTaskInput, UpdateTaskInput } from "./validation";
 
 export class ApiError extends Error {
@@ -36,6 +36,10 @@ export function viewParams(v: View): string {
       return `view=upcoming&today=${v.today}&to=${v.to}`;
     case "project":
       return `view=project&id=${encodeURIComponent(v.id)}`;
+    case "range":
+      return `view=range&from=${v.from}&to=${v.to}${v.projectId ? `&projectId=${encodeURIComponent(v.projectId)}` : ""}`;
+    case "all":
+      return "view=all";
   }
 }
 
@@ -74,4 +78,12 @@ export const api = {
   subscribePush: (sub: PushSubscriptionJSON) => request<{ ok: true }>("/api/push", { method: "POST", body: JSON.stringify(sub) }),
   unsubscribePush: (endpoint: string) => request<{ ok: true }>("/api/push", { method: "DELETE", body: JSON.stringify({ endpoint }) }),
   testPush: () => request<{ ok: true }>("/api/push/test", { method: "POST" }),
+
+  search: (q: string, signal?: AbortSignal) => request<SearchHit[]>(`/api/search?q=${encodeURIComponent(q)}`, { signal }),
+  filters: () => request<SavedFilter[]>("/api/filters"),
+  createFilter: (input: { id: string; name: string; query: string }) =>
+    request<SavedFilter>("/api/filters", { method: "POST", body: JSON.stringify(input) }),
+  updateFilter: (id: string, patch: { name?: string; query?: string }) =>
+    request<SavedFilter>(`/api/filters/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  deleteFilter: (id: string) => request<{ ok: true }>(`/api/filters/${id}`, { method: "DELETE" }),
 };

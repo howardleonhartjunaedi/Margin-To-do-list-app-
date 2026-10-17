@@ -46,6 +46,14 @@ export function belongsTo(t: Task, v: View): boolean {
       return !!t.dueDate && t.dueDate < v.to;
     case "project":
       return t.projectId === v.id;
+    case "range": {
+      if (v.projectId && t.projectId !== v.projectId) return false;
+      if (!t.dueDate) return false;
+      const start = t.startDate ?? t.dueDate;
+      return start <= v.to && t.dueDate >= v.from;
+    }
+    case "all":
+      return true;
   }
 }
 
@@ -56,7 +64,12 @@ const byDue = (a: Task, b: Task) =>
   a.priority - b.priority ||
   bySortKey(a, b);
 
-export const comparatorFor = (v: View) => (v.kind === "today" || v.kind === "upcoming" ? byDue : bySortKey);
+/** Dated first (soonest first), undated after in manual order. */
+const byDueNullsLast = (a: Task, b: Task) =>
+  a.dueDate && b.dueDate ? byDue(a, b) : a.dueDate ? -1 : b.dueDate ? 1 : a.priority - b.priority || bySortKey(a, b);
+
+export const comparatorFor = (v: View) =>
+  v.kind === "today" || v.kind === "upcoming" || v.kind === "range" ? byDue : v.kind === "all" ? byDueNullsLast : bySortKey;
 export const isManualOrder = (v: View) => v.kind === "inbox" || v.kind === "project";
 
 function insertSorted(list: Task[], t: Task, cmp: (a: Task, b: Task) => number) {
@@ -164,6 +177,7 @@ export function useTaskActions() {
         title: input.title,
         notes: input.notes ?? "",
         priority: input.priority ?? 4,
+        startDate: input.startDate ?? null,
         dueDate: input.dueDate ?? null,
         dueTime: input.dueTime ?? null,
         recurrence: input.recurrence ?? null,

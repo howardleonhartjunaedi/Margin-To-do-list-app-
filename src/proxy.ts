@@ -6,7 +6,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * The (app) layout does the real session check.
  */
 
-const APP = ["/today", "/inbox", "/upcoming", "/project", "/settings"];
+const APP = ["/today", "/inbox", "/upcoming", "/project", "/settings", "/filter"];
 const AUTH = ["/sign-in", "/sign-up"];
 
 export function proxy(req: NextRequest) {
@@ -15,7 +15,7 @@ export function proxy(req: NextRequest) {
 
   if (!signedIn && APP.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     const url = new URL("/sign-in", req.url);
-    url.searchParams.set("next", pathname);
+    url.searchParams.set("next", pathname + req.nextUrl.search);
     return NextResponse.redirect(url);
   }
   // Signed-in users go straight to Today. `reauth` means the cookie exists but the
@@ -27,5 +27,5 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/sign-in", "/sign-up", "/today", "/inbox", "/upcoming", "/project/:path*", "/settings"],
+  matcher: ["/", "/sign-in", "/sign-up", "/today", "/inbox", "/upcoming", "/project/:path*", "/settings", "/filter/:path*"],
 };

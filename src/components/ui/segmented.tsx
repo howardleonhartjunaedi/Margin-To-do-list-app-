@@ -43,6 +43,8 @@ export function Segmented<T extends string>({ value, onValueChange, options, lab
           {o.value === value && (
             <motion.span
               layoutId={layoutId}
+              // Only slide when the choice changes, not when the page around it reflows.
+              layoutDependency={value}
               transition={spring.layout}
               className="absolute inset-0 rounded-sm bg-raised shadow-1"
             />

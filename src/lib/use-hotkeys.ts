@@ -11,9 +11,11 @@ export function isTypingTarget(el: EventTarget | null) {
  * Global single-key shortcuts and "g then x" sequences.
  * Ignored while typing, with modifier keys held, or while a dialog/menu is open.
  */
-export function useHotkeys(map: Record<string, () => void>) {
+export function useHotkeys(map: Record<string, () => void>, opts: { when?: () => boolean } = {}) {
   const ref = useRef(map);
   ref.current = map;
+  const when = useRef(opts.when);
+  when.current = opts.when;
 
   useEffect(() => {
     let pending: string | null = null;
@@ -21,6 +23,7 @@ export function useHotkeys(map: Record<string, () => void>) {
 
     const onKey = (e: KeyboardEvent) => {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+      if (when.current && !when.current()) return;
       if (document.querySelector('[role="dialog"][data-state="open"], [role="menu"]')) return;
       const key = e.key.toLowerCase();
       const combo = pending ? `${pending} ${key}` : key;

@@ -7,6 +7,9 @@ import { useToday } from "@/lib/use-today";
 export interface QuickAddDefaults {
   projectId?: string | null;
   dueDate?: string | null;
+  priority?: 1 | 2 | 3 | 4;
+  /** Prefill the input (e.g. from the command palette). */
+  text?: string;
 }
 
 interface AppUI {
@@ -19,6 +22,11 @@ interface AppUI {
   openTaskId: string | null;
   openTask: (id: string) => void;
   closeTask: () => void;
+  palette: { open: boolean; query: string };
+  openPalette: (query?: string) => void;
+  closePalette: () => void;
+  shortcutsOpen: boolean;
+  setShortcutsOpen: (open: boolean) => void;
 }
 
 const Ctx = createContext<AppUI | null>(null);
@@ -29,6 +37,8 @@ export function AppUIProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const params = useSearchParams();
   const [quickAdd, setQuickAdd] = useState<AppUI["quickAdd"]>({ open: false, defaults: {} });
+  const [palette, setPalette] = useState<AppUI["palette"]>({ open: false, query: "" });
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   const contextDefaults = useMemo<QuickAddDefaults>(() => {
     if (pathname === "/today") return { dueDate: today };
@@ -64,8 +74,13 @@ export function AppUIProvider({ children }: { children: React.ReactNode }) {
       openTaskId,
       openTask,
       closeTask,
+      palette,
+      openPalette: (query = "") => setPalette({ open: true, query }),
+      closePalette: () => setPalette((p) => ({ ...p, open: false })),
+      shortcutsOpen,
+      setShortcutsOpen,
     }),
-    [today, quickAdd, contextDefaults, openTaskId, openTask, closeTask],
+    [today, quickAdd, contextDefaults, openTaskId, openTask, closeTask, palette, shortcutsOpen],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -1,12 +1,13 @@
 import "server-only";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, lte, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, inArray, isNotNull, isNull, lt, lte, or, sql, type SQL } from "drizzle-orm";
 import { generateKeyBetween } from "fractional-indexing";
-import type { Counts, Project, Task } from "@/lib/types";
-import type { CreateTaskInput, UpdateTaskInput } from "@/lib/validation";
+import type { Counts, Project, SavedFilter, SearchHit, Task } from "@/lib/types";
+import type { z } from "zod";
+import type { CreateTaskInput, UpdateTaskInput, viewQuerySchema } from "@/lib/validation";
 import { db } from "./db";
 import { advanceRecurring } from "@/lib/time/recurrence";
 import { instantToZoned } from "@/lib/time/zone";
-import { completion, label, project, task, taskLabel } from "./db/schema";
+import { completion, label, project, savedFilter, task, taskLabel } from "./db/schema";
 import { addReminder, getSettings, recomputeTaskReminders } from "./reminders";
 
 /** Thrown for anything the client did wrong; route handlers turn it into a 4xx. */
@@ -33,6 +34,7 @@ const taskColumns = {
   title: task.title,
   notes: task.notes,
   priority: task.priority,
+  startDate: task.startDate,
   dueDate: task.dueDate,
   dueTime: task.dueTime,
   recurrence: task.recurrence,
@@ -55,6 +57,7 @@ function toTask(r: RawTask): Task {
     title: r.title as string,
     notes: r.notes as string,
     priority: r.priority as Task["priority"],
+    startDate: (r.startDate as string) ?? null,
     dueDate: (r.dueDate as string) ?? null,
     dueTime: r.dueTime ? String(r.dueTime).slice(0, 5) : null,
     recurrence: (r.recurrence as string) ?? null,
@@ -73,11 +76,7 @@ const open = (userId: string) =>
 // Date-sorted views: overdue first, then by day, timed before untimed, then priority.
 const byDue = [asc(task.dueDate), sql`${task.dueTime} asc nulls last`, asc(task.priority), asc(task.sortKey)];
 
-export type ViewQuery =
-  | { view: "inbox" }
-  | { view: "today"; today: string }
-  | { view: "upcoming"; today: string; to: string }
-  | { view: "project"; id: string };
+export type ViewQuery = z.infer<typeof viewQuerySchema>;
 
 export async function listTasks(userId: string, q: ViewQuery): Promise<Task[]> {
   let where: SQL | undefined;
@@ -97,6 +96,21 @@ export async function listTasks(userId: string, q: ViewQuery): Promise<Task[]> {
       break;
     case "project":
       where = and(open(userId), eq(task.projectId, q.id));
+      break;
+    case "range":
+      // Due in range, or a start–due span that overlaps it.
+      where = and(
+        open(userId),
+        q.projectId ? eq(task.projectId, q.projectId) : undefined,
+        isNotNull(task.dueDate),
+        gte(task.dueDate, q.from),
+        lte(sql`coalesce(${task.startDate}, ${task.dueDate})`, q.to),
+      );
+      order = byDue;
+      break;
+    case "all":
+      where = open(userId);
+      order = [sql`${task.dueDate} asc nulls last`, asc(task.priority), asc(task.sortKey)];
       break;
   }
   const rows = await db.select(taskColumns).from(task).where(where).orderBy(...order).limit(MAX_LIST);
@@ -150,7 +164,13 @@ async function setLabels(tx: Parameters<Parameters<typeof db.transaction>[0]>[0]
   await tx.insert(taskLabel).values(rows.map((r) => ({ taskId, labelId: r.id }))).onConflictDoNothing();
 }
 
+function assertSpan(start: string | null | undefined, due: string | null | undefined) {
+  if (start && due && start > due) throw new ClientError("A task can’t start after it’s due.", 422);
+  if (start && !due) throw new ClientError("Give the task a due date before a start date.", 422);
+}
+
 export async function createTask(userId: string, input: CreateTaskInput): Promise<Task> {
+  assertSpan(input.startDate, input.dueDate);
   let projectId = input.projectId ?? null;
   const parentId = input.parentId ?? null;
   if (parentId) {
@@ -176,6 +196,7 @@ export async function createTask(userId: string, input: CreateTaskInput): Promis
         title: input.title,
         notes: input.notes ?? "",
         priority: input.priority ?? 4,
+        startDate: input.startDate ?? null,
         dueDate: input.dueDate ?? null,
         dueTime: input.dueTime ?? null,
         recurrence: input.recurrence ?? null,
@@ -196,11 +217,18 @@ export async function createTask(userId: string, input: CreateTaskInput): Promis
 
 export async function updateTask(userId: string, id: string, input: UpdateTaskInput): Promise<Task> {
   const [existing] = await db
-    .select({ id: task.id, recurrence: task.recurrence, dueDate: task.dueDate, completedAt: task.completedAt })
+    .select({ id: task.id, recurrence: task.recurrence, startDate: task.startDate, dueDate: task.dueDate, completedAt: task.completedAt })
     .from(task)
     .where(and(eq(task.id, id), eq(task.userId, userId)));
   if (!existing) throw new ClientError("That task doesn’t exist any more.", 404);
   if (input.projectId !== undefined) await assertProject(userId, input.projectId);
+  if (input.startDate !== undefined || input.dueDate !== undefined) {
+    // Clearing the due date clears the start too; otherwise the span must be ordered.
+    const due = input.dueDate !== undefined ? input.dueDate : existing.dueDate;
+    const start = input.dueDate === null ? null : input.startDate !== undefined ? input.startDate : existing.startDate;
+    assertSpan(start, due);
+    if (input.dueDate === null) input = { ...input, startDate: null };
+  }
 
   const { completed, deleted, labels, ...fields } = input;
   const patch: Partial<typeof task.$inferInsert> = { ...fields };
@@ -210,6 +238,11 @@ export async function updateTask(userId: string, id: string, input: UpdateTaskIn
     const settings = await getSettings(db, userId);
     const today = instantToZoned(new Date(), settings.timeZone).date;
     patch.dueDate = advanceRecurring(recurring, existing.dueDate, today);
+    if (existing.startDate && existing.dueDate) {
+      const span = (Date.parse(existing.dueDate) - Date.parse(existing.startDate)) / 86_400_000;
+      const d = new Date(Date.parse(patch.dueDate) - span * 86_400_000);
+      patch.startDate = d.toISOString().slice(0, 10);
+    }
     patch.completedAt = null;
   } else if (completed !== undefined) {
     patch.completedAt = completed ? new Date() : null;
@@ -317,4 +350,92 @@ export async function getCounts(userId: string, today: string): Promise<Omit<Cou
 
 export async function listLabels(userId: string) {
   return db.select({ id: label.id, name: label.name }).from(label).where(eq(label.userId, userId)).orderBy(asc(sql`lower(${label.name})`));
+}
+
+/* ------------------------------ Search ------------------------------ */
+
+const escapeLike = (q: string) => q.replace(/[\\%_]/g, (c) => "\\" + c);
+
+/**
+ * Title and notes, open and done. Ranked: title starts with the query, then title contains,
+ * then notes; open before completed; recent first. ILIKE over one user's rows stays fast
+ * well past 10k tasks; swap for pg_trgm/FTS if that ever changes.
+ */
+export async function searchTasks(userId: string, q: string): Promise<SearchHit[]> {
+  const term = q.trim().slice(0, 100);
+  if (!term) return [];
+  const like = `%${escapeLike(term)}%`;
+  const rank = sql`case when ${task.title} ilike ${escapeLike(term) + "%"} then 0 when ${task.title} ilike ${like} then 1 else 2 end`;
+  const rows = await db
+    .select({
+      id: task.id,
+      title: task.title,
+      notes: task.notes,
+      parentId: task.parentId,
+      projectId: task.projectId,
+      dueDate: task.dueDate,
+      completedAt: task.completedAt,
+    })
+    .from(task)
+    .where(and(eq(task.userId, userId), isNull(task.deletedAt), or(ilike(task.title, like), ilike(task.notes, like))))
+    .orderBy(rank, sql`${task.completedAt} is not null`, desc(task.updatedAt))
+    .limit(20);
+  return rows.map((r) => {
+    const inTitle = r.title.toLowerCase().includes(term.toLowerCase());
+    let snippet: string | null = null;
+    if (!inTitle) {
+      const i = r.notes.toLowerCase().indexOf(term.toLowerCase());
+      const from = Math.max(0, i - 30);
+      snippet = (from > 0 ? "…" : "") + r.notes.slice(from, i + term.length + 50).replace(/\s+/g, " ") + (i + term.length + 50 < r.notes.length ? "…" : "");
+    }
+    return {
+      id: r.id,
+      title: r.title,
+      parentId: r.parentId,
+      projectId: r.projectId,
+      dueDate: r.dueDate,
+      completed: !!r.completedAt,
+      field: inTitle ? "title" : "notes",
+      snippet,
+    };
+  });
+}
+
+/* ------------------------------ Saved filters ------------------------------ */
+
+export async function listFilters(userId: string): Promise<SavedFilter[]> {
+  return db
+    .select({ id: savedFilter.id, name: savedFilter.name, query: savedFilter.query, sortKey: savedFilter.sortKey })
+    .from(savedFilter)
+    .where(eq(savedFilter.userId, userId))
+    .orderBy(asc(savedFilter.sortKey));
+}
+
+export async function createFilter(userId: string, input: { id?: string; name: string; query: string }) {
+  const [last] = await db
+    .select({ k: savedFilter.sortKey })
+    .from(savedFilter)
+    .where(eq(savedFilter.userId, userId))
+    .orderBy(desc(savedFilter.sortKey))
+    .limit(1);
+  const [row] = await db
+    .insert(savedFilter)
+    .values({ ...(input.id ? { id: input.id } : {}), userId, name: input.name, query: input.query, sortKey: generateKeyBetween(last?.k ?? null, null) })
+    .returning({ id: savedFilter.id, name: savedFilter.name, query: savedFilter.query, sortKey: savedFilter.sortKey });
+  return row;
+}
+
+export async function updateFilter(userId: string, id: string, patch: { name?: string; query?: string }) {
+  const [row] = await db
+    .update(savedFilter)
+    .set(patch)
+    .where(and(eq(savedFilter.id, id), eq(savedFilter.userId, userId)))
+    .returning({ id: savedFilter.id, name: savedFilter.name, query: savedFilter.query, sortKey: savedFilter.sortKey });
+  if (!row) throw new ClientError("That filter doesn’t exist any more.", 404);
+  return row;
+}
+
+export async function deleteFilter(userId: string, id: string) {
+  const rows = await db.delete(savedFilter).where(and(eq(savedFilter.id, id), eq(savedFilter.userId, userId))).returning({ id: savedFilter.id });
+  if (!rows.length) throw new ClientError("That filter doesn’t exist any more.", 404);
 }

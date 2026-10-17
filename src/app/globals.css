@@ -283,6 +283,34 @@
   }
 }
 
+/* ---------- View transitions (list ↔ board ↔ calendar …) ----------
+ * Depth-based: the old layout recedes slightly as it fades, the new one settles
+ * forward into place. Only transform + opacity. Skipped entirely unless motion is Full
+ * (see src/lib/view-transition.ts).
+ */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+::view-transition-old(view-body) {
+  animation: vt-recede var(--dur-base) var(--ease-exit) both;
+}
+::view-transition-new(view-body) {
+  animation: vt-arrive var(--dur-page) var(--ease-enter) both;
+}
+@keyframes vt-recede {
+  to {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+@keyframes vt-arrive {
+  from {
+    opacity: 0;
+    transform: scale(1.012) translateY(4px);
+  }
+}
+
 /* Lenis */
 html.lenis,
 html.lenis body {

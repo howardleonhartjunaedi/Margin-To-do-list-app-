@@ -14,6 +14,7 @@ export const createTaskSchema = z.object({
   projectId: z.string().nullable().optional(),
   parentId: z.string().nullable().optional(),
   priority: priority.optional(),
+  startDate: isoDate.nullable().optional(),
   dueDate: isoDate.nullable().optional(),
   dueTime: hhmm.nullable().optional(),
   recurrence: rrule.nullable().optional(),
@@ -26,6 +27,7 @@ export const updateTaskSchema = z
     notes: z.string().max(20_000),
     projectId: z.string().nullable(),
     priority,
+    startDate: isoDate.nullable(),
     dueDate: isoDate.nullable(),
     dueTime: hhmm.nullable(),
     recurrence: rrule.nullable(),
@@ -58,7 +60,15 @@ export const viewQuerySchema = z.discriminatedUnion("view", [
   z.object({ view: z.literal("today"), today: isoDate }),
   z.object({ view: z.literal("upcoming"), today: isoDate, to: isoDate }),
   z.object({ view: z.literal("project"), id: z.string().min(1) }),
+  z.object({ view: z.literal("range"), from: isoDate, to: isoDate, projectId: z.string().min(1).optional() }),
+  z.object({ view: z.literal("all") }),
 ]);
+
+export const savedFilterSchema = z.object({
+  id: z.uuid().optional(),
+  name: z.string().trim().min(1, "Give the filter a name.").max(80),
+  query: z.string().max(1000),
+});
 
 export const createReminderSchema = z.union([
   z.object({ offsetMinutes: z.number().int().min(-10_080).max(43_200) }), // up to a week after / 30 days before

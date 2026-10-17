@@ -14,6 +14,8 @@ import { useHotkeys } from "@/lib/use-hotkeys";
 import { AppUIProvider, useAppUI } from "./app-ui";
 import { SidebarContent } from "./sidebar";
 import { NotificationWatcher } from "./notifications";
+import { CommandPalette } from "./command-palette";
+import { ShortcutsDialog } from "./shortcuts-dialog";
 import { useSettings, useSettingsActions } from "@/lib/data";
 import { refreshPushSubscription } from "@/lib/push";
 
@@ -28,7 +30,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
 }
 
 function Shell({ user, children }: { user: User; children: React.ReactNode }) {
-  const { openQuickAdd } = useAppUI();
+  const { openQuickAdd, openPalette, setShortcutsOpen } = useAppUI();
   const router = useRouter();
   const [navOpen, setNavOpen] = useState(false);
   const online = useOnline();
@@ -38,7 +40,23 @@ function Shell({ user, children }: { user: User; children: React.ReactNode }) {
     "g i": () => router.push("/inbox"),
     "g t": () => router.push("/today"),
     "g u": () => router.push("/upcoming"),
+    "g c": () => router.push("/upcoming?layout=calendar"),
+    "g s": () => router.push("/settings"),
+    "/": () => openPalette(),
+    "?": () => setShortcutsOpen(true),
   });
+
+  // ⌘K / Ctrl+K works even while typing.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        openPalette();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [openPalette]);
 
   return (
     <div className="min-h-dvh">
@@ -89,6 +107,8 @@ function Shell({ user, children }: { user: User; children: React.ReactNode }) {
       <QuickAddDialog />
       <TaskDetailSheet />
       <NotificationWatcher />
+      <CommandPalette />
+      <ShortcutsDialog />
       <FirstRunSync />
     </div>
   );

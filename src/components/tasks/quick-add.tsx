@@ -41,11 +41,11 @@ function QuickAddForm({
   today,
   onDone,
 }: {
-  defaults: { projectId?: string | null; dueDate?: string | null };
+  defaults: { projectId?: string | null; dueDate?: string | null; priority?: 1 | 2 | 3 | 4; text?: string };
   today: string;
   onDone: () => void;
 }) {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(defaults.text ?? "");
   const [added, setAdded] = useState<{ id: string; text: string } | null>(null);
   const projects = useProjects().data ?? [];
   const { create } = useTaskActions();
@@ -83,7 +83,7 @@ function QuickAddForm({
       projectId,
       dueDate,
       dueTime: dueDate ? parsed.dueTime : null,
-      priority: parsed.priority,
+      priority: parsed.priority < 4 ? parsed.priority : (defaults.priority ?? 4),
       recurrence: parsed.recurrence?.rrule ?? null,
       labels: parsed.labels,
     });
