@@ -175,7 +175,7 @@ const COLOR_GROUPS: { title: string; note?: string; swatches: Swatch[] }[] = [
     ],
   },
   {
-    title: "Accent — vermilion",
+    title: "Accent — fern",
     note: "The editor’s pencil. Primary action, focus, links, the current place. Never decoration.",
     swatches: [
       { token: "accent", role: "Primary action, focus, links", on: "bg", min: 4.5 },
