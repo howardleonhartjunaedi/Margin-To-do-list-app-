@@ -38,6 +38,39 @@ export interface Counts {
   labels: string[];
 }
 
+export interface ReminderInfo {
+  id: string;
+  offsetMinutes: number | null;
+  at: string | null;
+  fireAt: string | null;
+  status: "pending" | "sending" | "sent" | "skipped" | "failed" | "dismissed";
+}
+
+export interface Notification {
+  id: string;
+  kind: "reminder" | "digest";
+  title: string;
+  body: string;
+  taskId: string | null;
+  reminderId: string | null;
+  createdAt: string;
+  read: boolean;
+  taskDone: boolean;
+}
+
+export interface Settings {
+  timeZone: string;
+  dayTime: string;
+  defaultReminderMinutes: number | null;
+  quietEnabled: boolean;
+  quietStart: string;
+  quietEnd: string;
+  pushEnabled: boolean;
+  emailEnabled: boolean;
+  digestEnabled: boolean;
+  digestTime: string;
+}
+
 export type View =
   | { kind: "inbox" }
   | { kind: "today"; today: ISODate }

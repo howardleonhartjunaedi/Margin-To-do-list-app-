@@ -4,7 +4,10 @@ import { generateKeyBetween } from "fractional-indexing";
 import type { Counts, Project, Task } from "@/lib/types";
 import type { CreateTaskInput, UpdateTaskInput } from "@/lib/validation";
 import { db } from "./db";
-import { label, project, task, taskLabel } from "./db/schema";
+import { advanceRecurring } from "@/lib/time/recurrence";
+import { instantToZoned } from "@/lib/time/zone";
+import { completion, label, project, task, taskLabel } from "./db/schema";
+import { addReminder, getSettings, recomputeTaskReminders } from "./reminders";
 
 /** Thrown for anything the client did wrong; route handlers turn it into a 4xx. */
 export class ClientError extends Error {
@@ -182,21 +185,51 @@ export async function createTask(userId: string, input: CreateTaskInput): Promis
     if (input.labels?.length) await setLabels(tx, userId, row.id, input.labels);
     return row.id;
   });
+  // A task with a time gets the user's default reminder, if they've set one.
+  if (input.dueDate && input.dueTime && !parentId) {
+    const settings = await getSettings(db, userId);
+    if (settings.defaultReminderMinutes != null)
+      await addReminder(db, userId, { id, dueDate: input.dueDate, dueTime: input.dueTime }, { offsetMinutes: settings.defaultReminderMinutes });
+  }
   return (await getTaskWithSubtasks(userId, id)).task;
 }
 
 export async function updateTask(userId: string, id: string, input: UpdateTaskInput): Promise<Task> {
-  const [existing] = await db.select({ id: task.id }).from(task).where(and(eq(task.id, id), eq(task.userId, userId)));
+  const [existing] = await db
+    .select({ id: task.id, recurrence: task.recurrence, dueDate: task.dueDate, completedAt: task.completedAt })
+    .from(task)
+    .where(and(eq(task.id, id), eq(task.userId, userId)));
   if (!existing) throw new ClientError("That task doesn’t exist any more.", 404);
   if (input.projectId !== undefined) await assertProject(userId, input.projectId);
 
   const { completed, deleted, labels, ...fields } = input;
   const patch: Partial<typeof task.$inferInsert> = { ...fields };
-  if (completed !== undefined) patch.completedAt = completed ? new Date() : null;
+  const recurring = (fields.recurrence !== undefined ? fields.recurrence : existing.recurrence) ?? null;
+  if (completed === true && recurring) {
+    // A repeating task never closes: it moves to its next occurrence.
+    const settings = await getSettings(db, userId);
+    const today = instantToZoned(new Date(), settings.timeZone).date;
+    patch.dueDate = advanceRecurring(recurring, existing.dueDate, today);
+    patch.completedAt = null;
+  } else if (completed !== undefined) {
+    patch.completedAt = completed ? new Date() : null;
+  }
   if (deleted !== undefined) patch.deletedAt = deleted ? new Date() : null;
   if (fields.dueDate === null) patch.dueTime = null; // no time without a day
 
   await db.transaction(async (tx) => {
+    // Completion history (feeds stats). Undo removes the most recent one.
+    if (completed === true && (recurring || !existing.completedAt))
+      await tx.insert(completion).values({ userId, taskId: id, dueDate: existing.dueDate });
+    if (completed === false) {
+      const [last] = await tx
+        .select({ id: completion.id })
+        .from(completion)
+        .where(and(eq(completion.taskId, id), eq(completion.userId, userId)))
+        .orderBy(desc(completion.completedAt))
+        .limit(1);
+      if (last) await tx.delete(completion).where(eq(completion.id, last.id));
+    }
     if (Object.keys(patch).length) {
       await tx.update(task).set(patch).where(and(eq(task.id, id), eq(task.userId, userId)));
       // Moving a task moves its subtasks; deleting it hides them too.
@@ -205,6 +238,9 @@ export async function updateTask(userId: string, id: string, input: UpdateTaskIn
     }
     if (labels) await setLabels(tx, userId, id, labels);
   });
+
+  if (patch.dueDate !== undefined || patch.dueTime !== undefined || completed === false || deleted === false)
+    await recomputeTaskReminders(db, userId, id);
 
   const [row] = await db.select(taskColumns).from(task).where(eq(task.id, id));
   return toTask(row);

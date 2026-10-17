@@ -60,5 +60,42 @@ export const viewQuerySchema = z.discriminatedUnion("view", [
   z.object({ view: z.literal("project"), id: z.string().min(1) }),
 ]);
 
+export const createReminderSchema = z.union([
+  z.object({ offsetMinutes: z.number().int().min(-10_080).max(43_200) }), // up to a week after / 30 days before
+  z.object({ at: z.iso.datetime({ offset: true }) }),
+]);
+
+export const snoozeSchema = z.union([
+  z.object({ minutes: z.number().int().min(1).max(10_080) }),
+  z.object({ tomorrowAt: hhmm }),
+]);
+
+export const settingsSchema = z
+  .object({
+    timeZone: z.string().refine((tz) => {
+      try {
+        new Intl.DateTimeFormat("en", { timeZone: tz });
+        return true;
+      } catch {
+        return false;
+      }
+    }, "That isn’t a time zone we recognise."),
+    dayTime: hhmm,
+    defaultReminderMinutes: z.number().int().min(0).max(10_080).nullable(),
+    quietEnabled: z.boolean(),
+    quietStart: hhmm,
+    quietEnd: hhmm,
+    pushEnabled: z.boolean(),
+    emailEnabled: z.boolean(),
+    digestEnabled: z.boolean(),
+    digestTime: hhmm,
+  })
+  .partial();
+
+export const pushSubscriptionSchema = z.object({
+  endpoint: z.url().max(2000),
+  keys: z.object({ p256dh: z.string().min(1).max(500), auth: z.string().min(1).max(500) }),
+});
+
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;

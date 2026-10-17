@@ -53,6 +53,23 @@ export function formatDue(date: ISODate, today: ISODate, time?: string | null): 
   return time ? `${label} ${formatTime(time)}` : label;
 }
 
+/** "just now", "12 min ago", "3 h ago", "Yesterday 09:00", "Mon 20 Oct 09:00". Instants only. */
+export function timeAgo(iso: string, now = new Date()): string {
+  const t = new Date(iso);
+  const min = Math.round((now.getTime() - t.getTime()) / 60_000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min} min ago`;
+  if (min < 6 * 60) return `${Math.round(min / 60)} h ago`;
+  const hhmm = `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+  return `${formatDue(toISODate(t), toISODate(now))} ${hhmm}`;
+}
+
+/** An instant as local "Tue 20 Oct 14:30" (or "Today 14:30"). */
+export function formatInstant(iso: string, today: ISODate): string {
+  const t = new Date(iso);
+  return formatDue(toISODate(t), today, `${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`);
+}
+
 export function weekdayShort(date: ISODate) {
   return WEEKDAY_SHORT.format(fromISODate(date));
 }

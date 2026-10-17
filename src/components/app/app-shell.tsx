@@ -13,6 +13,9 @@ import { TaskDetailSheet } from "@/components/tasks/task-detail";
 import { useHotkeys } from "@/lib/use-hotkeys";
 import { AppUIProvider, useAppUI } from "./app-ui";
 import { SidebarContent } from "./sidebar";
+import { NotificationWatcher } from "./notifications";
+import { useSettings, useSettingsActions } from "@/lib/data";
+import { refreshPushSubscription } from "@/lib/push";
 
 type User = { name: string; email: string };
 
@@ -85,6 +88,8 @@ function Shell({ user, children }: { user: User; children: React.ReactNode }) {
 
       <QuickAddDialog />
       <TaskDetailSheet />
+      <NotificationWatcher />
+      <FirstRunSync />
     </div>
   );
 }
@@ -102,4 +107,27 @@ function useOnline() {
     };
   }, []);
   return online;
+}
+
+/**
+ * On first use, adopt this device's time zone (so "9am" means the user's 9am),
+ * and keep any existing push subscription registered with the server.
+ */
+function FirstRunSync() {
+  const settings = useSettings().data;
+  const save = useSettingsActions();
+  useEffect(() => {
+    if (!settings) return;
+    const key = "margin:tz-adopted";
+    try {
+      if (!localStorage.getItem(key)) {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (tz && tz !== settings.timeZone) void save({ timeZone: tz });
+        localStorage.setItem(key, "1");
+      }
+    } catch {}
+    void refreshPushSubscription();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!settings]);
+  return null;
 }

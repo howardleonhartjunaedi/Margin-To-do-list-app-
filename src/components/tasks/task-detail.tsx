@@ -17,7 +17,17 @@ import { formatDue } from "@/lib/dates";
 import { describeRRule } from "@/lib/quick-add/rrule";
 import type { Priority, Task } from "@/lib/types";
 import { DateMenu } from "./reschedule";
+import { RemindersSection } from "./reminders-section";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+
+const REPEAT_OPTIONS = [
+  "FREQ=DAILY",
+  "FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR",
+  "FREQ=WEEKLY",
+  "FREQ=WEEKLY;INTERVAL=2",
+  "FREQ=MONTHLY",
+  "FREQ=YEARLY",
+];
 
 export function TaskDetailSheet() {
   const { openTaskId, closeTask } = useAppUI();
@@ -59,7 +69,7 @@ function TaskDetail({ id }: { id: string }) {
     );
   }
 
-  const { task, subtasks } = q.data;
+  const { task, subtasks, reminders } = q.data;
   const project = projects.find((p) => p.id === task.projectId);
   const done = !!task.completedAt;
 
@@ -173,20 +183,33 @@ function TaskDetail({ id }: { id: string }) {
             />
           </dd>
 
-          {task.recurrence && (
-            <>
-              <dt className="text-ink-2">Repeats</dt>
-              <dd className="flex items-center gap-2">
-                <Icon icon={Repeat} size="xs" className="text-ink-3" />
-                <span>{describeRRule(task.recurrence)}</span>
-                <Button variant="ghost" size="icon-sm" aria-label="Stop repeating" onClick={() => void actions.update(task, { recurrence: null })}>
-                  <Icon icon={X} size="xs" />
-                </Button>
-              </dd>
-            </>
-          )}
+          <dt className="text-ink-2">
+            <label htmlFor="task-repeat">Repeats</label>
+          </dt>
+          <dd className="flex items-center gap-2">
+            <select
+              id="task-repeat"
+              value={task.recurrence ?? ""}
+              onChange={(e) => {
+                const recurrence = e.target.value || null;
+                // A repeating task needs a start date; default to today.
+                void actions.update(task, { recurrence, ...(recurrence && !task.dueDate ? { dueDate: today } : {}) });
+              }}
+              className="h-8 max-w-full rounded-md bg-raised px-2 text-sm text-ink ring-1 ring-control ring-inset"
+            >
+              <option value="">Doesn’t repeat</option>
+              {REPEAT_OPTIONS.map((r) => (
+                <option key={r} value={r}>
+                  {describeRRule(r)}
+                </option>
+              ))}
+              {task.recurrence && !REPEAT_OPTIONS.includes(task.recurrence) && <option value={task.recurrence}>{describeRRule(task.recurrence)}</option>}
+            </select>
+            {task.recurrence && <Icon icon={Repeat} size="xs" className="text-ink-3" />}
+          </dd>
         </dl>
 
+        <RemindersSection task={task} reminders={reminders} />
         <Notes key={task.id} task={task} onSave={(notes) => actions.update(task, { notes })} />
         <Subtasks parent={task} subtasks={subtasks} />
 

@@ -6,7 +6,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * The (app) layout does the real session check.
  */
 
-const APP = ["/today", "/inbox", "/upcoming", "/project"];
+const APP = ["/today", "/inbox", "/upcoming", "/project", "/settings"];
 const AUTH = ["/sign-in", "/sign-up"];
 
 export function proxy(req: NextRequest) {
@@ -27,5 +27,5 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/sign-in", "/sign-up", "/today", "/inbox", "/upcoming", "/project/:path*"],
+  matcher: ["/", "/sign-in", "/sign-up", "/today", "/inbox", "/upcoming", "/project/:path*", "/settings"],
 };

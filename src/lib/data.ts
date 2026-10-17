@@ -4,7 +4,9 @@ import { useQuery, useQueryClient, type QueryClient, type QueryKey } from "@tans
 import { useCallback } from "react";
 import { toast, toastWithUndo } from "@/components/ui/toast";
 import { api, ApiError } from "./api";
-import type { Project, Task, View } from "./types";
+import { formatDue, todayISO } from "./dates";
+import { advanceRecurring } from "./time/recurrence";
+import type { Project, ReminderInfo, Settings, Task, View } from "./types";
 import type { CreateTaskInput, UpdateTaskInput } from "./validation";
 
 /*
@@ -14,13 +16,15 @@ import type { CreateTaskInput, UpdateTaskInput } from "./validation";
  * Lists are never refetched after our own writes — that's what keeps rows from jumping.
  */
 
-type Detail = { task: Task; subtasks: Task[] };
+type Detail = { task: Task; subtasks: Task[]; reminders: ReminderInfo[] };
 
 export const keys = {
   tasks: (v: View) => ["tasks", v] as const,
   task: (id: string) => ["task", id] as const,
   projects: ["projects"] as const,
   counts: (today: string) => ["counts", today] as const,
+  notifications: ["notifications"] as const,
+  settings: ["settings"] as const,
 };
 
 export const useTasks = (v: View) => useQuery({ queryKey: keys.tasks(v), queryFn: () => api.tasks(v) });
@@ -85,7 +89,7 @@ function writeEverywhere(qc: QueryClient, t: Task, removed = false) {
         ? d.subtasks.map((s) => (s.id === t.id ? t : s))
         : [...d.subtasks, t];
     const parent = { ...d.task, subtaskCount: subs.length, subtaskDone: subs.filter((s) => s.completedAt).length };
-    qc.setQueryData<Detail>(keys.task(parent.id), { task: parent, subtasks: subs });
+    qc.setQueryData<Detail>(keys.task(parent.id), { ...d, task: parent, subtasks: subs });
     writeEverywhere(qc, parent); // parent's "2/5" in every list
   }
 }
@@ -102,7 +106,11 @@ function snapshot(qc: QueryClient) {
 function applyPatch(t: Task, p: UpdateTaskInput): Task {
   const { completed, deleted: _deleted, ...rest } = p;
   const next: Task = { ...t, ...rest } as Task;
-  if (completed !== undefined) next.completedAt = completed ? new Date().toISOString() : null;
+  if (completed === true && next.recurrence) {
+    // Repeating tasks move to their next date instead of closing (server does the same).
+    next.dueDate = advanceRecurring(next.recurrence, t.dueDate, todayISO());
+    next.completedAt = null;
+  } else if (completed !== undefined) next.completedAt = completed ? new Date().toISOString() : null;
   if (p.dueDate === null) next.dueTime = null;
   return next;
 }
@@ -134,6 +142,9 @@ export function useTaskActions() {
         // Keep the optimistic completedAt so a lingering row doesn't flicker.
         if (patch.deleted !== true) writeEverywhere(qc, { ...saved, completedAt: saved.completedAt && optimistic.completedAt });
         refreshCounts(qc);
+        // Date, time or completion changes move reminders server-side.
+        if ("dueDate" in patch || "dueTime" in patch || "completed" in patch || "recurrence" in patch)
+          qc.invalidateQueries({ queryKey: keys.task(t.id) });
         return saved;
       } catch (e) {
         restore();
@@ -181,7 +192,12 @@ export function useTaskActions() {
     update,
     create,
     complete: (t: Task) =>
-      update(t, { completed: true }, { message: `Completed “${truncate(t.title)}”.`, undo: { completed: false } }),
+      t.recurrence
+        ? update(t, { completed: true }, {
+            message: `Done. Next: ${formatDue(advanceRecurring(t.recurrence, t.dueDate, todayISO()), todayISO())}.`,
+            undo: { completed: false, dueDate: t.dueDate, dueTime: t.dueTime },
+          })
+        : update(t, { completed: true }, { message: `Completed “${truncate(t.title)}”.`, undo: { completed: false } }),
     uncomplete: (t: Task) => update(t, { completed: false }),
     remove: (t: Task) => update(t, { deleted: true }, { message: `Deleted “${truncate(t.title)}”.`, undo: { deleted: false } }),
     reschedule: (t: Task, dueDate: string | null, label: string) =>
@@ -237,3 +253,59 @@ export function useProjectActions() {
 }
 
 export const truncate = (s: string, n = 40) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+
+/* ------------------------------ Reminders, notifications, settings ------------------------------ */
+
+export const useNotifications = () =>
+  useQuery({ queryKey: keys.notifications, queryFn: api.notifications, refetchInterval: 30_000, refetchIntervalInBackground: false });
+
+export const useSettings = () => useQuery({ queryKey: keys.settings, queryFn: api.settings });
+
+export function useReminderActions(taskId: string) {
+  const qc = useQueryClient();
+  const setReminders = (reminders: ReminderInfo[]) =>
+    qc.setQueryData<Detail>(keys.task(taskId), (d) => (d ? { ...d, reminders } : d));
+  return {
+    add: async (spec: { offsetMinutes: number } | { at: string }) => {
+      try {
+        setReminders(await api.addReminder(taskId, spec));
+      } catch (e) {
+        failed(e);
+      }
+    },
+    remove: async (id: string) => {
+      const restore = snapshot(qc);
+      qc.setQueryData<Detail>(keys.task(taskId), (d) => (d ? { ...d, reminders: d.reminders.filter((r) => r.id !== id) } : d));
+      try {
+        await api.deleteReminder(id);
+      } catch (e) {
+        restore();
+        failed(e);
+      }
+    },
+  };
+}
+
+export function useSettingsActions() {
+  const qc = useQueryClient();
+  return async (patch: Partial<Settings>) => {
+    const prev = qc.getQueryData(keys.settings);
+    qc.setQueryData<Settings>(keys.settings, (s) => (s ? { ...s, ...patch } : s));
+    try {
+      qc.setQueryData(keys.settings, await api.updateSettings(patch));
+      if (patch.timeZone || patch.dayTime) qc.invalidateQueries({ queryKey: ["task"] });
+    } catch (e) {
+      qc.setQueryData(keys.settings, prev);
+      failed(e);
+    }
+  };
+}
+
+export async function snoozeReminder(reminderId: string, choice: { minutes: number } | { tomorrowAt: string }, label: string) {
+  try {
+    await api.snooze(reminderId, choice);
+    toast(`Snoozed — ${label}.`);
+  } catch (e) {
+    failed(e);
+  }
+}

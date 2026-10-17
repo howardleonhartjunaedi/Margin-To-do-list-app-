@@ -1,4 +1,4 @@
-import type { Counts, Project, Task, View } from "./types";
+import type { Counts, Notification, Project, ReminderInfo, Settings, Task, View } from "./types";
 import type { CreateTaskInput, UpdateTaskInput } from "./validation";
 
 export class ApiError extends Error {
@@ -41,7 +41,7 @@ export function viewParams(v: View): string {
 
 export const api = {
   tasks: (v: View) => request<Task[]>(`/api/tasks?${viewParams(v)}`),
-  task: (id: string) => request<{ task: Task; subtasks: Task[] }>(`/api/tasks/${id}`),
+  task: (id: string) => request<{ task: Task; subtasks: Task[]; reminders: ReminderInfo[] }>(`/api/tasks/${id}`),
   createTask: (input: CreateTaskInput) => request<Task>("/api/tasks", { method: "POST", body: JSON.stringify(input) }),
   updateTask: (id: string, patch: UpdateTaskInput) =>
     request<Task>(`/api/tasks/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
@@ -52,4 +52,26 @@ export const api = {
     request<Project>(`/api/projects/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
   deleteProject: (id: string) => request<{ ok: true }>(`/api/projects/${id}`, { method: "DELETE" }),
   counts: (today: string) => request<Counts>(`/api/counts?today=${today}`),
+
+  addReminder: (taskId: string, spec: { offsetMinutes: number } | { at: string }) =>
+    request<ReminderInfo[]>(`/api/tasks/${taskId}/reminders`, { method: "POST", body: JSON.stringify(spec) }),
+  deleteReminder: (id: string) => request<{ ok: true }>(`/api/reminders/${id}`, { method: "DELETE" }),
+  snooze: (id: string, choice: { minutes: number } | { tomorrowAt: string }) =>
+    request<{ fireAt: string }>(`/api/reminders/${id}/snooze`, { method: "POST", body: JSON.stringify(choice) }),
+
+  notifications: () => request<{ items: Notification[]; unread: number }>("/api/notifications"),
+  markRead: (ids: string[] | "all") =>
+    request<{ items: Notification[]; unread: number }>("/api/notifications", {
+      method: "POST",
+      body: JSON.stringify(ids === "all" ? { all: true } : { ids }),
+    }),
+
+  settings: () => request<Settings & { pushDevices: number }>("/api/settings"),
+  updateSettings: (patch: Partial<Settings>) =>
+    request<Settings & { pushDevices: number }>("/api/settings", { method: "PATCH", body: JSON.stringify(patch) }),
+
+  pushKey: () => request<{ publicKey: string | null }>("/api/push"),
+  subscribePush: (sub: PushSubscriptionJSON) => request<{ ok: true }>("/api/push", { method: "POST", body: JSON.stringify(sub) }),
+  unsubscribePush: (endpoint: string) => request<{ ok: true }>("/api/push", { method: "DELETE", body: JSON.stringify({ endpoint }) }),
+  testPush: () => request<{ ok: true }>("/api/push/test", { method: "POST" }),
 };

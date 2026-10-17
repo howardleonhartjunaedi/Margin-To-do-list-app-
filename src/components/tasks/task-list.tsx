@@ -69,7 +69,20 @@ export function TaskList({ view, groups, empty, cleared, footer }: TaskListProps
       if (lingering.has(t.id) || t.completedAt) {
         clearTimeout(timers.current.get(t.id));
         setLingering((s) => new Set([...s].filter((x) => x !== t.id)));
-        void actions.uncomplete(t);
+        // A repeating task hasn't been sent anywhere yet while it lingers; just cancel.
+        if (!(t.recurrence && !t.completedAt)) void actions.uncomplete(t);
+        return;
+      }
+      if (t.recurrence) {
+        // Tick and strike first, then it moves to its next date (and out of this list).
+        setLingering((s) => new Set(s).add(t.id));
+        timers.current.set(
+          t.id,
+          setTimeout(() => {
+            setLingering((s) => new Set([...s].filter((x) => x !== t.id)));
+            void actions.complete(t);
+          }, LINGER_MS),
+        );
         return;
       }
       setLingering((s) => new Set(s).add(t.id));

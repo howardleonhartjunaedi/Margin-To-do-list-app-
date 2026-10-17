@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Inbox, LogOut, Plus, Sun } from "lucide-react";
+import { CalendarDays, Inbox, LogOut, Plus, Settings, Sun } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -24,6 +24,7 @@ import { useCounts, useProjectActions, useProjects } from "@/lib/data";
 import { projectDot } from "@/lib/project-colors";
 import { useAppUI } from "./app-ui";
 import { DisplaySettings } from "./display-settings";
+import { NotificationsButton } from "./notifications";
 import { ProjectForm } from "./project-form";
 
 export function SidebarContent({ user, onNavigate }: { user: { name: string; email: string }; onNavigate?: () => void }) {
@@ -96,7 +97,17 @@ export function SidebarContent({ user, onNavigate }: { user: { name: string; ema
 
       <div className="flex items-center gap-1 border-t border-line pt-3">
         <UserMenu user={user} />
-        <DisplaySettings side="top" align="end" className="ml-auto" />
+        <div className="ml-auto flex items-center">
+          <NotificationsButton />
+          <Tooltip content="Settings">
+            <Button asChild variant="ghost" size="icon-sm" aria-label="Settings">
+              <Link href="/settings" onClick={onNavigate}>
+                <Icon icon={Settings} className={pathname === "/settings" ? "text-accent" : undefined} />
+              </Link>
+            </Button>
+          </Tooltip>
+          <DisplaySettings side="top" align="end" compact />
+        </div>
       </div>
     </div>
   );

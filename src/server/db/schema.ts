@@ -4,6 +4,7 @@ import {
   boolean,
   date,
   index,
+  integer,
   pgTable,
   primaryKey,
   smallint,
@@ -176,6 +177,112 @@ export const taskLabel = pgTable(
   (t) => [primaryKey({ columns: [t.taskId, t.labelId] }), index().on(t.labelId)],
 );
 
+/* ------------------------------ Reminders & notifications ------------------------------ */
+
+export const userSettings = pgTable("user_settings", {
+  userId: text()
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  /** IANA zone; every wall-clock rule (due times, quiet hours, digest) is read in it. */
+  timeZone: text().notNull().default("UTC"),
+  /** When a date-only task is "due", for reminder purposes. */
+  dayTime: text().notNull().default("09:00"),
+  /** Added automatically when a task gets a time. null = none. */
+  defaultReminderMinutes: integer(),
+  quietEnabled: boolean().notNull().default(false),
+  quietStart: text().notNull().default("22:00"),
+  quietEnd: text().notNull().default("07:00"),
+  pushEnabled: boolean().notNull().default(true),
+  emailEnabled: boolean().notNull().default(false),
+  digestEnabled: boolean().notNull().default(false),
+  digestTime: text().notNull().default("08:00"),
+  lastDigestOn: date({ mode: "string" }),
+  ...timestamps,
+});
+
+export const reminder = pgTable(
+  "reminder",
+  {
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    taskId: text()
+      .notNull()
+      .references(() => task.id, { onDelete: "cascade" }),
+    /** Relative: minutes before the task's due moment. */
+    offsetMinutes: integer(),
+    /** Absolute: a fixed instant. Exactly one of offsetMinutes / at is set. */
+    at: timestamp({ withTimezone: true }),
+    /** Next time the scheduler should act. Moves on snooze and quiet-hours deferral. null = can't fire (no due date). */
+    fireAt: timestamp({ withTimezone: true }),
+    /** pending → sending → sent | skipped | failed. dismissed by the user. */
+    status: text().notNull().default("pending"),
+    attempts: smallint().notNull().default(0),
+    sentAt: timestamp({ withTimezone: true }),
+    ...timestamps,
+  },
+  (t) => [
+    index("reminder_due_idx").on(t.fireAt).where(sql`${t.status} = 'pending'`),
+    index().on(t.taskId),
+  ],
+);
+
+export const notification = pgTable(
+  "notification",
+  {
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    taskId: text().references(() => task.id, { onDelete: "set null" }),
+    reminderId: text().references(() => reminder.id, { onDelete: "set null" }),
+    kind: text().notNull(), // "reminder" | "digest"
+    title: text().notNull(),
+    body: text().notNull().default(""),
+    readAt: timestamp({ withTimezone: true }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index().on(t.userId, t.createdAt)],
+);
+
+export const pushSubscription = pgTable("push_subscription", {
+  id: text()
+    .primaryKey()
+    .$defaultFn(() => crypto.randomUUID()),
+  userId: text()
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  endpoint: text().notNull().unique(),
+  p256dh: text().notNull(),
+  auth: text().notNull(),
+  userAgent: text(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+/** One row per completion — recurring tasks complete many times. Feeds stats in Phase 4. */
+export const completion = pgTable(
+  "completion",
+  {
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    taskId: text()
+      .notNull()
+      .references(() => task.id, { onDelete: "cascade" }),
+    dueDate: date({ mode: "string" }),
+    completedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index().on(t.userId, t.completedAt)],
+);
+
 /* ------------------------------ Relations ------------------------------ */
 
 export const projectRelations = relations(project, ({ many }) => ({ tasks: many(task) }));
@@ -194,3 +301,5 @@ export const taskLabelRelations = relations(taskLabel, ({ one }) => ({
 
 export type TaskRow = typeof task.$inferSelect;
 export type ProjectRow = typeof project.$inferSelect;
+export type ReminderRow = typeof reminder.$inferSelect;
+export type SettingsRow = typeof userSettings.$inferSelect;

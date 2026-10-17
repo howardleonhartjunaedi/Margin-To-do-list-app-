@@ -10,13 +10,24 @@ import { Switch } from "@/components/ui/switch";
 import type { MotionLevel } from "@/design/motion";
 import { cn } from "@/lib/cn";
 
-export function DisplaySettings({ side = "bottom", align = "end", className }: { side?: "top" | "bottom"; align?: "start" | "end"; className?: string }) {
+export function DisplaySettings({
+  side = "bottom",
+  align = "end",
+  compact = false,
+  className,
+}: {
+  side?: "top" | "bottom";
+  align?: "start" | "end";
+  compact?: boolean;
+  className?: string;
+}) {
   const { prefs, set, osReducedMotion } = usePreferences();
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button size="sm" variant="ghost" className={cn(className)}>
-          <Icon icon={SlidersHorizontal} /> Display
+        <Button size="sm" variant="ghost" className={cn(compact && "size-8 px-0", className)} aria-label="Display">
+          <Icon icon={SlidersHorizontal} />
+          {!compact && " Display"}
         </Button>
       </PopoverTrigger>
       <PopoverContent side={side} align={align} className="w-80 p-4">
