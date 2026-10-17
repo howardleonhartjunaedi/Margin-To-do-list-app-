@@ -104,7 +104,7 @@ export function SidebarContent({ user, onNavigate }: { user: { name: string; ema
               key={p.id}
               href={`/project/${p.id}`}
               dot={projectDot(p.color)}
-              label={p.name}
+              label={p.memberCount > 1 ? `${p.name} · shared` : p.name}
               count={p.openCount}
               active={pathname === `/project/${p.id}`}
               onNavigate={onNavigate}

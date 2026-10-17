@@ -5,6 +5,7 @@ import { instantToZoned } from "@/lib/time/zone";
 import type { Db } from "../db/types";
 import { notification, reminder, task, user, userSettings } from "../db/schema";
 import { getSettings } from "../reminders";
+import { forMe, taskAccess, visibleTask } from "../access";
 
 /*
  * One scheduler tick. Pure with respect to time and delivery: `now` and the outbound
@@ -29,11 +30,15 @@ export interface OutboundMessage {
   tag: string;
   reminderId?: string;
   taskId?: string;
+  /** Email footer; defaults to the reminders explanation. */
+  footer?: string;
 }
 
 export interface Channels {
   push(msg: OutboundMessage): Promise<void>;
   email(msg: OutboundMessage): Promise<void>;
+  /** Tell the user's open tabs a notification arrived (optional; real-time). */
+  inApp?(userId: string): void;
 }
 
 export interface TickReport {
@@ -103,13 +108,11 @@ async function handleReminder(
   baseUrl: string,
   report: TickReport,
 ) {
-  const [row] = await db
-    .select({ task, email: user.email })
-    .from(task)
-    .innerJoin(user, eq(user.id, task.userId))
-    .where(eq(task.id, r.taskId));
-  const t = row?.task;
-  if (!t || t.deletedAt || t.completedAt) {
+  const [t] = await db.select().from(task).where(eq(task.id, r.taskId));
+  const [owner] = await db.select({ email: user.email }).from(user).where(eq(user.id, r.userId));
+  // Also skip if the reminder's owner has since lost access (left or was removed from the project).
+  const canSee = t && (await taskAccess(db, r.userId, t.id)) !== null;
+  if (!t || !owner || !canSee || t.deletedAt || t.completedAt) {
     await db.update(reminder).set({ status: "skipped" }).where(eq(reminder.id, r.id));
     report.skipped++;
     return;
@@ -151,6 +154,7 @@ async function handleReminder(
       .where(eq(reminder.id, r.id));
   });
   report.sent++;
+  channels.inApp?.(r.userId);
 
   if (late) {
     report.late++;
@@ -158,7 +162,7 @@ async function handleReminder(
   }
   const msg: OutboundMessage = {
     userId: r.userId,
-    email: row.email,
+    email: owner.email,
     title: t.title,
     body,
     url: `${baseUrl}/today?task=${t.id}`,
@@ -197,7 +201,7 @@ async function runDigests(db: Db, now: Date, channels: Channels, baseUrl: string
       .returning({ userId: userSettings.userId });
     if (!claimed.length) continue;
 
-    const open = and(eq(task.userId, s.userId), isNull(task.completedAt), isNull(task.deletedAt), isNull(task.parentId));
+    const open = and(visibleTask(s.userId), forMe(s.userId), isNull(task.completedAt), isNull(task.deletedAt), isNull(task.parentId));
     const rows = await db
       .select({ title: task.title, dueDate: task.dueDate, dueTime: task.dueTime, priority: task.priority })
       .from(task)
@@ -214,6 +218,7 @@ async function runDigests(db: Db, now: Date, channels: Channels, baseUrl: string
     const body = lines.join("\n");
 
     await db.insert(notification).values({ userId: s.userId, kind: "digest", title, body, createdAt: now });
+    channels.inApp?.(s.userId);
     sent++;
     if (s.emailEnabled) {
       await channels

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlignLeft, CalendarClock, Check, Flag, GripVertical, ListChecks, MoreHorizontal, PanelRightOpen, Repeat, Trash2 } from "lucide-react";
+import { AlignLeft, MessageSquare, CalendarClock, Check, Flag, GripVertical, ListChecks, MoreHorizontal, PanelRightOpen, Repeat, Trash2 } from "lucide-react";
 import { motion, type DragControls } from "motion/react";
 import { memo } from "react";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ import { duration, ease } from "@/design/motion";
 import { cn } from "@/lib/cn";
 import { formatDue, formatTime } from "@/lib/dates";
 import { minutesLabel } from "@/lib/focus";
+import { getCurrentUserId } from "@/lib/data";
+import { useMembers } from "@/components/sharing/share-dialog";
 import { projectDot } from "@/lib/project-colors";
 import type { Priority, Project, Task, View } from "@/lib/types";
 import { ReschedulePopover, type DateChoice } from "./reschedule";
@@ -201,6 +203,14 @@ function Meta({
       </span>
     ),
     task.notes && <Icon key="notes" icon={AlignLeft} size="xs" label="Has notes" className="text-ink-3" />,
+    task.commentCount > 0 && (
+      <span key="comments" className="inline-flex items-center gap-1 font-mono text-2xs text-ink-3">
+        <Icon icon={MessageSquare} size="xs" />
+        {task.commentCount}
+        <span className="sr-only"> comments</span>
+      </span>
+    ),
+    task.assigneeId && task.projectId && task.assigneeId !== getCurrentUserId() && <AssigneeChip key="assignee" projectId={task.projectId} userId={task.assigneeId} />,
     ...task.labels.map((l) => (
       <span key={`l-${l}`} className="text-xs text-ink-3">
         @{l}
@@ -215,4 +225,15 @@ function Meta({
   ].filter(Boolean);
   if (!items.length) return null;
   return <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">{items}</div>;
+}
+
+function AssigneeChip({ projectId, userId }: { projectId: string; userId: string }) {
+  const m = useMembers(projectId).data?.members.find((x) => x.userId === userId);
+  if (!m) return null;
+  return (
+    <span className="inline-flex items-center gap-1 text-xs text-ink-2" title={`Assigned to ${m.name}`}>
+      <span className="grid size-4 place-items-center rounded-full bg-sunken font-mono text-2xs leading-none text-ink-2">{m.name.slice(0, 1).toUpperCase()}</span>
+      {m.name.split(" ")[0]}
+    </span>
+  );
 }

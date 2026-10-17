@@ -6,7 +6,8 @@ import { instantToZoned } from "@/lib/time/zone";
 import { db } from "./db";
 import { completion, dailyNote, focusSession, habit, habitCheck, project, task } from "./db/schema";
 import { getSettings } from "./reminders";
-import { ClientError } from "./tasks";
+import { ClientError } from "./errors";
+import { forMe, taskAccess, visibleTask } from "./access";
 
 /* ------------------------------ Focus ------------------------------ */
 
@@ -15,8 +16,7 @@ export async function recordFocus(
   input: { taskId?: string | null; kind: "focus" | "break"; plannedSeconds: number; actualSeconds: number; completed: boolean; startedAt: string; endedAt: string },
 ) {
   if (input.taskId) {
-    const [t] = await db.select({ id: task.id }).from(task).where(and(eq(task.id, input.taskId), eq(task.userId, userId)));
-    if (!t) input = { ...input, taskId: null }; // task gone: keep the minutes, drop the link
+    if (!(await taskAccess(db, userId, input.taskId))) input = { ...input, taskId: null }; // task gone: keep the minutes, drop the link
   }
   const [row] = await db
     .insert(focusSession)
@@ -273,7 +273,8 @@ export async function dayLoad(userId: string, date: string) {
     .from(task)
     .where(
       and(
-        eq(task.userId, userId),
+        visibleTask(userId),
+        forMe(userId),
         isNull(task.completedAt),
         isNull(task.deletedAt),
         isNull(task.parentId),

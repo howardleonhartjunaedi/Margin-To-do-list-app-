@@ -29,6 +29,13 @@
       "when": 1792259071042,
       "tag": "0003_productivity",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792260034222,
+      "tag": "0004_collaboration",
+      "breakpoints": true
     }
   ]
 }

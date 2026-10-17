@@ -5,8 +5,11 @@ import type { Task } from "./types";
 const today = "2026-10-17";
 const t = (over: Partial<Task>): Task => ({
   id: Math.random().toString(36).slice(2),
+  createdBy: "me",
   projectId: null,
   parentId: null,
+  assigneeId: null,
+  commentCount: 0,
   title: "Task",
   notes: "",
   priority: 4,

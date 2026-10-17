@@ -35,19 +35,27 @@ export const useTaskDetail = (id: string | null) =>
 
 /* ------------------------------ View rules (mirror the server) ------------------------------ */
 
+/** The signed-in user, set once by the app shell. Needed to mirror the server's "for me" rule. */
+let currentUserId = "";
+export const setCurrentUserId = (id: string) => void (currentUserId = id);
+export const getCurrentUserId = () => currentUserId;
+
+/** Assigned to me, or unassigned and added by me — what belongs on my own date views. */
+const forMe = (t: Task) => t.assigneeId === currentUserId || (!t.assigneeId && t.createdBy === currentUserId);
+
 export function belongsTo(t: Task, v: View): boolean {
   if (t.parentId) return false;
   switch (v.kind) {
     case "inbox":
       return !t.projectId;
     case "today":
-      return !!t.dueDate && t.dueDate <= v.today;
+      return !!t.dueDate && t.dueDate <= v.today && forMe(t);
     case "upcoming":
-      return !!t.dueDate && t.dueDate < v.to;
+      return !!t.dueDate && t.dueDate < v.to && forMe(t);
     case "project":
       return t.projectId === v.id;
     case "range": {
-      if (v.projectId && t.projectId !== v.projectId) return false;
+      if (v.projectId ? t.projectId !== v.projectId : !forMe(t)) return false;
       if (!t.dueDate) return false;
       const start = t.startDate ?? t.dueDate;
       return start <= v.to && t.dueDate >= v.from;
@@ -172,8 +180,10 @@ export function useTaskActions() {
       const restore = snapshot(qc);
       const optimistic: Task = {
         id: input.id,
+        createdBy: currentUserId,
         projectId: input.projectId ?? null,
         parentId: input.parentId ?? null,
+        assigneeId: input.assigneeId ?? null,
         title: input.title,
         notes: input.notes ?? "",
         priority: input.priority ?? 4,
@@ -188,6 +198,7 @@ export function useTaskActions() {
         labels: input.labels ?? [],
         subtaskCount: 0,
         subtaskDone: 0,
+        commentCount: 0,
       };
       writeEverywhere(qc, optimistic);
       try {
@@ -229,7 +240,7 @@ export function useProjectActions() {
       const restore = snapshot(qc);
       qc.setQueryData<Project[]>(keys.projects, (ps) => [
         ...(ps ?? []),
-        { id: input.id, name: input.name, color: (input.color ?? "ink") as Project["color"], sortKey: "￿", openCount: 0 },
+        { id: input.id, name: input.name, color: (input.color ?? "ink") as Project["color"], sortKey: "￿", openCount: 0, role: "owner", memberCount: 1 },
       ]);
       try {
         const saved = await api.createProject(input);

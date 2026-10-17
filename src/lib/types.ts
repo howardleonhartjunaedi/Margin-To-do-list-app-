@@ -5,8 +5,11 @@ export type Priority = 1 | 2 | 3 | 4;
 /** A task as the client sees it. */
 export interface Task {
   id: string;
+  /** The user who added it. */
+  createdBy: string;
   projectId: string | null;
   parentId: string | null;
+  assigneeId: string | null;
   title: string;
   notes: string;
   priority: Priority;
@@ -21,6 +24,26 @@ export interface Task {
   labels: string[];
   subtaskCount: number;
   subtaskDone: number;
+  commentCount: number;
+}
+
+export type Role = "viewer" | "commenter" | "editor" | "owner";
+
+export interface Member {
+  userId: string;
+  name: string;
+  email: string;
+  role: Role;
+}
+
+export interface Comment {
+  id: string;
+  taskId: string;
+  userId: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+  editedAt: string | null;
 }
 
 export interface Project {
@@ -29,6 +52,8 @@ export interface Project {
   color: ProjectColor;
   sortKey: string;
   openCount: number;
+  role: Role;
+  memberCount: number;
 }
 
 export type ProjectColor = "ink" | "accent" | "p1" | "p2" | "p3" | "success";
@@ -50,7 +75,7 @@ export interface ReminderInfo {
 
 export interface Notification {
   id: string;
-  kind: "reminder" | "digest";
+  kind: "reminder" | "digest" | "comment" | "assigned";
   title: string;
   body: string;
   taskId: string | null;

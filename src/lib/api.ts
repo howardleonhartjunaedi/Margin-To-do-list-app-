@@ -1,4 +1,45 @@
-import type { Counts, DayNote, Habit, Notification, Project, ReminderInfo, SavedFilter, SearchHit, Settings, Stats, Task, View } from "./types";
+import type { Comment, Counts, DayNote, Habit, Member, Notification, Project, ReminderInfo, Role, SavedFilter, SearchHit, Settings, Stats, Task, View } from "./types";
+
+export interface MembersResponse {
+  myRole: Role;
+  members: Member[];
+  invites: { id: string; email: string | null; role: Role; expiresAt: string; url: string }[];
+}
+export interface ApiTokenInfo {
+  id: string;
+  name: string;
+  prefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+export interface WebhookInfo {
+  id: string;
+  url: string;
+  events: string[];
+  active: boolean;
+  failureCount: number;
+  lastStatus: number | null;
+  lastDeliveryAt: string | null;
+  createdAt: string;
+}
+export interface DeliveryInfo {
+  id: string;
+  event: string;
+  status: string;
+  attempts: number;
+  responseStatus: number | null;
+  error: string | null;
+  createdAt: string;
+  deliveredAt: string | null;
+}
+export interface ImportSummary {
+  tasks: number;
+  subtasks: number;
+  completed: number;
+  newProjects: string[];
+  sample: string[];
+  imported: boolean;
+}
 import type { CreateTaskInput, UpdateTaskInput } from "./validation";
 
 export class ApiError extends Error {
@@ -10,10 +51,13 @@ export class ApiError extends Error {
   }
 }
 
+/** Identifies this tab, so real-time echoes of its own changes can be ignored. */
+export const clientId = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Math.random());
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(path, { ...init, headers: { "content-type": "application/json", ...init?.headers } });
+    res = await fetch(path, { ...init, headers: { "content-type": "application/json", "x-client-id": clientId, ...init?.headers } });
   } catch {
     throw new ApiError("You’re offline. Your change wasn’t saved — try again when you’re back.", 0);
   }
@@ -46,7 +90,7 @@ export function viewParams(v: View): string {
 export const api = {
   tasks: (v: View) => request<Task[]>(`/api/tasks?${viewParams(v)}`),
   task: (id: string) =>
-    request<{ task: Task; subtasks: Task[]; reminders: ReminderInfo[]; focus: { minutes: number; sessions: number } }>(`/api/tasks/${id}`),
+    request<{ task: Task; subtasks: Task[]; reminders: ReminderInfo[]; focus: { minutes: number; sessions: number }; role: Role }>(`/api/tasks/${id}`),
   createTask: (input: CreateTaskInput) => request<Task>("/api/tasks", { method: "POST", body: JSON.stringify(input) }),
   updateTask: (id: string, patch: UpdateTaskInput) =>
     request<Task>(`/api/tasks/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
@@ -109,4 +153,35 @@ export const api = {
   saveDay: (date: string, patch: Partial<Pick<DayNote, "intention" | "reflection" | "capacityMinutes">> & { planned?: boolean; reviewed?: boolean }) =>
     request<DayNote>(`/api/days/${date}`, { method: "PUT", body: JSON.stringify(patch) }),
   stats: (from: string, to: string) => request<Stats>(`/api/stats?from=${from}&to=${to}`),
+
+  members: (projectId: string) => request<MembersResponse>(`/api/projects/${projectId}/members`),
+  invite: (projectId: string, input: { email?: string | null; role: Role }) =>
+    request<{ id: string; url: string; email: string | null; role: Role }>(`/api/projects/${projectId}/invites`, { method: "POST", body: JSON.stringify(input) }),
+  revokeInvite: (id: string) => request<{ ok: true }>(`/api/invites/${id}`, { method: "DELETE" }),
+  acceptInvite: (token: string) => request<{ projectId: string }>(`/api/invites/${token}/accept`, { method: "POST" }),
+  setRole: (projectId: string, userId: string, role: Role) =>
+    request<MembersResponse>(`/api/projects/${projectId}/members/${userId}`, { method: "PATCH", body: JSON.stringify({ role }) }),
+  removeMember: (projectId: string, userId: string) => request<{ ok: true }>(`/api/projects/${projectId}/members/${userId}`, { method: "DELETE" }),
+
+  comments: (taskId: string) => request<Comment[]>(`/api/tasks/${taskId}/comments`),
+  addComment: (taskId: string, body: string) => request<Comment>(`/api/tasks/${taskId}/comments`, { method: "POST", body: JSON.stringify({ body }) }),
+  editComment: (id: string, body: string) => request<{ ok: true }>(`/api/comments/${id}`, { method: "PATCH", body: JSON.stringify({ body }) }),
+  deleteComment: (id: string) => request<{ ok: true }>(`/api/comments/${id}`, { method: "DELETE" }),
+
+  feed: () => request<{ enabled: boolean; url: string | null }>("/api/ical"),
+  rotateFeed: () => request<{ enabled: boolean; url: string | null }>("/api/ical", { method: "POST" }),
+  disableFeed: () => request<{ enabled: boolean; url: string | null }>("/api/ical", { method: "DELETE" }),
+  importData: (input: { format: "json" | "csv" | "text"; content: string; dryRun?: boolean }) =>
+    request<ImportSummary>("/api/import", { method: "POST", body: JSON.stringify(input) }),
+  tokens: () => request<ApiTokenInfo[]>("/api/tokens"),
+  createToken: (name: string) => request<ApiTokenInfo & { token: string }>("/api/tokens", { method: "POST", body: JSON.stringify({ name }) }),
+  revokeToken: (id: string) => request<{ ok: true }>(`/api/tokens/${id}`, { method: "DELETE" }),
+  webhooks: () => request<WebhookInfo[]>("/api/webhooks"),
+  createWebhook: (input: { url: string; events: string[] }) =>
+    request<WebhookInfo & { secret: string }>("/api/webhooks", { method: "POST", body: JSON.stringify(input) }),
+  updateWebhook: (id: string, patch: { events?: string[]; active?: boolean }) =>
+    request<WebhookInfo>(`/api/webhooks/${id}`, { method: "PATCH", body: JSON.stringify(patch) }),
+  deleteWebhook: (id: string) => request<{ ok: true }>(`/api/webhooks/${id}`, { method: "DELETE" }),
+  testWebhook: (id: string) => request<{ ok: true }>(`/api/webhooks/${id}/test`, { method: "POST" }),
+  deliveries: (id: string) => request<DeliveryInfo[]>(`/api/webhooks/${id}/deliveries`),
 };

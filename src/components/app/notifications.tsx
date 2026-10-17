@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { Bell, Check, Clock, Newspaper } from "lucide-react";
+import { Bell, Check, Clock, MessageSquare, Newspaper, UserCheck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -142,7 +142,7 @@ function Inbox({ items, onNavigate }: { items?: Notification[]; onNavigate: () =
     <ul className="max-h-[60vh] divide-y divide-line overflow-y-auto" data-lenis-prevent>
       {items.map((n) => (
         <li key={n.id} className={cn("flex gap-3 px-4 py-3", !n.read && "bg-accent-soft/40")}>
-          <Icon icon={n.kind === "digest" ? Newspaper : Clock} className="mt-0.5 text-ink-3" />
+          <Icon icon={n.kind === "digest" ? Newspaper : n.kind === "comment" ? MessageSquare : n.kind === "assigned" ? UserCheck : Clock} className="mt-0.5 text-ink-3" />
           <div className="min-w-0 flex-1">
             <button
               className={cn("block text-left text-sm", n.taskDone ? "text-ink-3 line-through" : "text-ink", n.taskId && "hover:underline")}

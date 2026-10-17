@@ -120,6 +120,8 @@ export const task = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     /** null = Inbox */
     projectId: text().references(() => project.id, { onDelete: "cascade" }),
+    /** Who should do it, in a shared project. null = whoever created it. */
+    assigneeId: text().references(() => user.id, { onDelete: "set null" }),
     /** Set for subtasks. One level deep in the UI; the schema doesn't forbid more. */
     parentId: text().references((): AnyPgColumn => task.id, { onDelete: "cascade" }),
     title: text().notNull(),
@@ -150,6 +152,7 @@ export const task = pgTable(
     // Inbox / project lists in manual order
     index("task_list_idx").on(t.userId, t.projectId, t.sortKey),
     index("task_parent_idx").on(t.parentId),
+    index("task_assignee_idx").on(t.assigneeId),
   ],
 );
 
@@ -201,6 +204,8 @@ export const userSettings = pgTable("user_settings", {
   digestEnabled: boolean().notNull().default(false),
   digestTime: text().notNull().default("08:00"),
   lastDigestOn: date({ mode: "string" }),
+  /** Secret for the private iCal feed URL. null until the user turns the feed on. */
+  icalToken: text().unique(),
   ...timestamps,
 });
 
@@ -377,6 +382,143 @@ export const dailyNote = pgTable(
     ...timestamps,
   },
   (t) => [primaryKey({ columns: [t.userId, t.date] })],
+);
+
+/* ------------------------------ Collaboration ------------------------------ */
+
+/**
+ * Who can see a project, and what they can do. The creator is always a member with role "owner".
+ *   owner     everything, including sharing and deleting the project
+ *   editor    add, edit, complete, move and delete tasks; comment
+ *   commenter read and comment
+ *   viewer    read only
+ */
+export const projectMember = pgTable(
+  "project_member",
+  {
+    projectId: text()
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    role: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.projectId, t.userId] }), index().on(t.userId)],
+);
+
+/** An invitation link. The id is the secret token in the URL. */
+export const projectInvite = pgTable(
+  "project_invite",
+  {
+    id: text().primaryKey(),
+    projectId: text()
+      .notNull()
+      .references(() => project.id, { onDelete: "cascade" }),
+    email: text(),
+    role: text().notNull(),
+    invitedBy: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    expiresAt: timestamp({ withTimezone: true }).notNull(),
+    acceptedAt: timestamp({ withTimezone: true }),
+    acceptedBy: text().references(() => user.id, { onDelete: "set null" }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index().on(t.projectId)],
+);
+
+export const comment = pgTable(
+  "comment",
+  {
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    taskId: text()
+      .notNull()
+      .references(() => task.id, { onDelete: "cascade" }),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    body: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    editedAt: timestamp({ withTimezone: true }),
+    deletedAt: timestamp({ withTimezone: true }),
+  },
+  (t) => [index().on(t.taskId, t.createdAt)],
+);
+
+/* ------------------------------ Integrations ------------------------------ */
+
+/** Personal access token for the REST API. Only a SHA-256 hash is stored. */
+export const apiToken = pgTable(
+  "api_token",
+  {
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text().notNull(),
+    /** First characters of the token, so people can tell tokens apart. */
+    prefix: text().notNull(),
+    tokenHash: text().notNull().unique(),
+    lastUsedAt: timestamp({ withTimezone: true }),
+    revokedAt: timestamp({ withTimezone: true }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index().on(t.userId)],
+);
+
+export const webhook = pgTable(
+  "webhook",
+  {
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    url: text().notNull(),
+    /** HMAC-SHA256 signing secret; shown to the user once. */
+    secret: text().notNull(),
+    /** Comma-separated event names, or "*". */
+    events: text().notNull().default("*"),
+    active: boolean().notNull().default(true),
+    failureCount: integer().notNull().default(0),
+    lastStatus: integer(),
+    lastDeliveryAt: timestamp({ withTimezone: true }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index().on(t.userId)],
+);
+
+export const webhookDelivery = pgTable(
+  "webhook_delivery",
+  {
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    webhookId: text()
+      .notNull()
+      .references(() => webhook.id, { onDelete: "cascade" }),
+    event: text().notNull(),
+    payload: text().notNull(),
+    /** pending → sending → sent | failed */
+    status: text().notNull().default("pending"),
+    attempts: smallint().notNull().default(0),
+    nextAttemptAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    responseStatus: integer(),
+    error: text(),
+    deliveredAt: timestamp({ withTimezone: true }),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("webhook_delivery_due_idx").on(t.nextAttemptAt).where(sql`${t.status} = 'pending'`),
+    index().on(t.webhookId, t.createdAt),
+  ],
 );
 
 /* ------------------------------ Relations ------------------------------ */

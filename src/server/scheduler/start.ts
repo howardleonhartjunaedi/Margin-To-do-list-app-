@@ -1,6 +1,7 @@
 import type { Db } from "../db/types";
 import { realChannels } from "./channels";
 import { runTick } from "./core";
+import { deliverWebhooks } from "../webhooks";
 
 export const TICK_MS = 15_000;
 
@@ -20,7 +21,10 @@ export function startScheduler(getDb: () => Promise<Db>, opts: { baseUrl?: strin
     if (stopped) return;
     try {
       const db = await getDb();
-      const r = await runTick(db, new Date(), realChannels(db), baseUrl);
+      const now = new Date();
+      const r = await runTick(db, now, realChannels(db), baseUrl);
+      const w = await deliverWebhooks(db, now);
+      if (w.sent || w.failed) console.log("[webhooks]", JSON.stringify(w));
       if (r.sent || r.deferred || r.failed || r.digests)
         console.log(`[scheduler${opts.label ? `:${opts.label}` : ""}]`, JSON.stringify(r));
     } catch (e) {

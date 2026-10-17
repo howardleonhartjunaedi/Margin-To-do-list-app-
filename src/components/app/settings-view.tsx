@@ -9,6 +9,7 @@ import { ErrorState, Skeleton } from "@/components/ui/states";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
 import { ViewHeader } from "@/components/tasks/view-header";
+import { IntegrationsSettings } from "./integrations-settings";
 import { api } from "@/lib/api";
 import { useSettings, useSettingsActions } from "@/lib/data";
 import { disablePush, enablePush, pushState, type PushState } from "@/lib/push";
@@ -153,6 +154,7 @@ export function SettingsView() {
           </label>
         </div>
       </Section>
+      <IntegrationsSettings />
     </>
   );
 }

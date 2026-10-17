@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { useAppUI } from "@/components/app/app-ui";
 import { ProjectForm } from "@/components/app/project-form";
 import { ScopeView } from "@/components/views/scope";
+import { ShareButton } from "@/components/sharing/share-dialog";
 import { DayPrompt } from "@/components/day/day-flows";
 import { TodayHabits } from "@/components/habits/habits-view";
 import { Kbd } from "@/components/ui/badge";
@@ -203,7 +204,14 @@ export function ProjectView({ id }: { id: string }) {
         </span>
       }
       sub={count}
-      actions={project && <ProjectMenu id={project.id} name={project.name} color={project.color} count={project.openCount} />}
+      actions={
+        project && (
+          <>
+            <ShareButton projectId={project.id} projectName={project.name} memberCount={project.memberCount} />
+            {project.role === "owner" && <ProjectMenu id={project.id} name={project.name} color={project.color} count={project.openCount} />}
+          </>
+        )
+      }
       layouts={["list", "board", "calendar", "timeline", "matrix"]}
       listView={view}
       projectId={id}
@@ -225,7 +233,7 @@ export function ProjectView({ id }: { id: string }) {
             />
           }
           cleared={<EmptyState mark="Fin." title="All done here." body={`Nothing left open in ${project?.name}.`} />}
-          footer={<InlineAdd projectId={id} />}
+          footer={project && (project.role === "owner" || project.role === "editor") ? <InlineAdd projectId={id} /> : undefined}
         />
       )}
     />

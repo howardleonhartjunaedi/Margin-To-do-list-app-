@@ -21,7 +21,10 @@ export function proxy(req: NextRequest) {
   // Signed-in users go straight to Today. `reauth` means the cookie exists but the
   // session behind it is gone (the app layout sent us here) — let them sign in.
   if (signedIn && !req.nextUrl.searchParams.has("reauth") && (pathname === "/" || AUTH.includes(pathname))) {
-    return NextResponse.redirect(new URL("/today", req.url));
+    const next = req.nextUrl.searchParams.get("next");
+    // Only same-site paths: never bounce to another origin ("//evil.com" is protocol-relative).
+    const safe = next && next.startsWith("/") && !next.startsWith("//") ? next : "/today";
+    return NextResponse.redirect(new URL(safe, req.url));
   }
   return NextResponse.next();
 }

@@ -51,20 +51,19 @@ export async function addReminder(
  * or the user's timezone changes. Relative reminders move with the task; any that
  * now lie in the future are re-armed, even if they had already fired for the old date.
  */
-export async function recomputeTaskReminders(db: Db, userId: string, taskId: string, now = new Date()) {
-  const [t] = await db
-    .select({ id: task.id, dueDate: task.dueDate, dueTime: task.dueTime })
-    .from(task)
-    .where(and(eq(task.id, taskId), eq(task.userId, userId)));
+export async function recomputeTaskReminders(db: Db, _actorId: string, taskId: string, now = new Date()) {
+  // Every member's reminders on this task move, each in its owner's own time zone.
+  const [t] = await db.select({ id: task.id, dueDate: task.dueDate, dueTime: task.dueTime }).from(task).where(eq(task.id, taskId));
   if (!t) return;
-  const s = await getSettings(db, userId);
+  const settingsFor = new Map<string, SettingsRow>();
   const rows = await db
     .select()
     .from(reminder)
     .where(and(eq(reminder.taskId, taskId), ne(reminder.status, "dismissed")));
   for (const r of rows) {
     if (r.at) continue; // absolute reminders don't follow the task
-    const fireAt = fireAtFor(r, { ...t, dueTime: t.dueTime?.slice(0, 5) ?? null }, s);
+    if (!settingsFor.has(r.userId)) settingsFor.set(r.userId, await getSettings(db, r.userId));
+    const fireAt = fireAtFor(r, { ...t, dueTime: t.dueTime?.slice(0, 5) ?? null }, settingsFor.get(r.userId)!);
     const future = !!fireAt && fireAt.getTime() > now.getTime();
     await db
       .update(reminder)

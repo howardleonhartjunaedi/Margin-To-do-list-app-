@@ -6,6 +6,7 @@ import webpush from "web-push";
 import type { Db } from "../db/types";
 import { pushSubscription } from "../db/schema";
 import type { Channels, OutboundMessage } from "./core";
+import { publish } from "../events";
 
 /*
  * Real delivery channels.
@@ -44,12 +45,15 @@ function emailHtml(msg: OutboundMessage) {
 <h1 style="font-size:24px;font-weight:normal;margin:0 0 8px">${escapeHtml(msg.title)}</h1>
 <p style="font-family:Arial,sans-serif;font-size:14px;line-height:22px;color:#48433b;margin:0 0 24px">${body}</p>
 <a href="${escapeHtml(msg.url)}" style="font-family:Arial,sans-serif;font-size:14px;color:#fff8f2;background:#b93a17;padding:10px 16px;border-radius:8px;text-decoration:none">Open in Margin</a>
-<p style="font-family:Arial,sans-serif;font-size:12px;color:#6b6458;margin:32px 0 0">You get these because email reminders are on. Turn them off in Settings.</p>
+<p style="font-family:Arial,sans-serif;font-size:12px;color:#6b6458;margin:32px 0 0">${escapeHtml(msg.footer ?? "You get these because email reminders are on. Turn them off in Settings.")}</p>
 </div></body></html>`;
 }
 
 export function realChannels(db: Db): Channels {
   return {
+    inApp(userId) {
+      publish([userId], { type: "notification" });
+    },
     async push(msg) {
       if (!ensureVapid()) return;
       const subs = await db.select().from(pushSubscription).where(eq(pushSubscription.userId, msg.userId));

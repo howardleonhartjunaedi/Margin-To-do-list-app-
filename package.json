@@ -15,7 +15,8 @@
     "worker": "tsx scripts/worker.ts",
     "smoke:reminders": "node scripts/smoke-reminders.mjs",
     "smoke:views": "node scripts/smoke-views.mjs",
-    "smoke:productivity": "node scripts/smoke-productivity.mjs"
+    "smoke:productivity": "node scripts/smoke-productivity.mjs",
+    "smoke:sharing": "node scripts/smoke-sharing.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

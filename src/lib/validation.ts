@@ -13,6 +13,7 @@ export const createTaskSchema = z.object({
   notes: z.string().max(20_000).optional(),
   projectId: z.string().nullable().optional(),
   parentId: z.string().nullable().optional(),
+  assigneeId: z.string().nullable().optional(),
   priority: priority.optional(),
   startDate: isoDate.nullable().optional(),
   dueDate: isoDate.nullable().optional(),
@@ -27,6 +28,7 @@ export const updateTaskSchema = z
     title,
     notes: z.string().max(20_000),
     projectId: z.string().nullable(),
+    assigneeId: z.string().nullable(),
     priority,
     startDate: isoDate.nullable(),
     dueDate: isoDate.nullable(),
@@ -144,6 +146,10 @@ export const dayPatchSchema = z
   .partial();
 
 export const isoDateSchema = isoDate;
+
+export const memberRole = z.enum(["editor", "commenter", "viewer"]);
+export const inviteSchema = z.object({ email: z.email("That email address doesn’t look right.").max(320).nullable().optional(), role: memberRole });
+export const commentSchema = z.object({ body: z.string().trim().min(1, "Write something first.").max(10_000) });
 
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;

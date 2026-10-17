@@ -11,7 +11,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <QueryProvider>
       <Suspense>
-        <AppShell user={{ name: session.user.name, email: session.user.email }}>{children}</AppShell>
+        <AppShell user={{ id: session.user.id, name: session.user.name, email: session.user.email }}>{children}</AppShell>
       </Suspense>
     </QueryProvider>
   );

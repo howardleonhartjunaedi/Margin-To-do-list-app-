@@ -21,6 +21,10 @@ import { describeRRule } from "@/lib/quick-add/rrule";
 import type { Priority, Task } from "@/lib/types";
 import { DateMenu } from "./reschedule";
 import { RemindersSection } from "./reminders-section";
+import { Comments } from "@/components/sharing/comments";
+import { useMembers } from "@/components/sharing/share-dialog";
+import { Badge } from "@/components/ui/badge";
+import { getCurrentUserId } from "@/lib/data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 const REPEAT_OPTIONS = [
@@ -74,15 +78,19 @@ function TaskDetail({ id }: { id: string }) {
     );
   }
 
-  const { task, subtasks, reminders, focus } = q.data;
+  const { task, subtasks, reminders, focus, role } = q.data;
   const project = projects.find((p) => p.id === task.projectId);
   const done = !!task.completedAt;
+  // Viewers and commenters see everything but can't change the task itself.
+  const readOnly = role === "viewer" || role === "commenter";
+  const writableProjects = projects.filter((p) => p.role === "owner" || p.role === "editor");
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="flex h-14 shrink-0 items-center gap-2 border-b border-line px-4">
         <SheetClose className="-ml-2" />
         <span className="truncate text-sm text-ink-2">{project?.name ?? "Inbox"}</span>
+        {readOnly && <Badge tone="outline">{role === "viewer" ? "View only" : "Can comment"}</Badge>}
         <Button
           variant="ghost"
           size="sm"
@@ -95,20 +103,23 @@ function TaskDetail({ id }: { id: string }) {
         >
           <Icon icon={Timer} /> Focus
         </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="text-danger hover:bg-danger-soft hover:text-danger"
-          onClick={() => {
-            closeTask();
-            void actions.remove(task);
-          }}
-        >
-          <Icon icon={Trash2} /> Delete
-        </Button>
+        {!readOnly && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-danger hover:bg-danger-soft hover:text-danger"
+            onClick={() => {
+              closeTask();
+              void actions.remove(task);
+            }}
+          >
+            <Icon icon={Trash2} /> Delete
+          </Button>
+        )}
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-5 pb-10 sm:px-6" data-lenis-prevent>
+        <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
         <div className="flex items-start gap-3">
           <div className="pt-1.5">
             <TaskCheckbox
@@ -171,14 +182,16 @@ function TaskDetail({ id }: { id: string }) {
               onChange={(e) => void actions.update(task, { projectId: e.target.value || null })}
               className="h-8 max-w-full rounded-md bg-raised px-2 text-sm text-ink ring-1 ring-control ring-inset"
             >
-              <option value="">Inbox</option>
-              {projects.map((p) => (
+              {(task.createdBy === getCurrentUserId() || !task.projectId) && <option value="">Inbox</option>}
+              {(writableProjects.some((p) => p.id === task.projectId) ? writableProjects : [...writableProjects, ...(project ? [project] : [])]).map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
                 </option>
               ))}
             </select>
           </dd>
+
+          {project && project.memberCount > 1 && <AssigneeRow task={task} onChange={(assigneeId) => void actions.update(task, { assigneeId })} />}
 
           <dt className="text-ink-2">
             <label htmlFor="task-labels">Labels</label>
@@ -251,10 +264,14 @@ function TaskDetail({ id }: { id: string }) {
             {task.recurrence && <Icon icon={Repeat} size="xs" className="text-ink-3" />}
           </dd>
         </dl>
+        </fieldset>
 
         <RemindersSection task={task} reminders={reminders} />
-        <Notes key={task.id} task={task} onSave={(notes) => actions.update(task, { notes })} />
-        <Subtasks parent={task} subtasks={subtasks} />
+        <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
+          <Notes key={task.id} task={task} onSave={(notes) => actions.update(task, { notes })} />
+          <Subtasks parent={task} subtasks={subtasks} />
+        </fieldset>
+        <Comments taskId={task.id} role={role} />
 
         <p className="mt-10 font-mono text-2xs text-ink-3">
           Created {new Date(task.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
@@ -382,5 +399,34 @@ function Subtasks({ parent, subtasks }: { parent: Task; subtasks: Task[] }) {
         />
       </form>
     </section>
+  );
+}
+
+function AssigneeRow({ task, onChange }: { task: Task; onChange: (assigneeId: string | null) => void }) {
+  const members = useMembers(task.projectId).data?.members ?? [];
+  const me = getCurrentUserId();
+  return (
+    <>
+      <dt className="text-ink-2">
+        <label htmlFor="task-assignee">Assigned to</label>
+      </dt>
+      <dd>
+        <select
+          id="task-assignee"
+          value={task.assigneeId ?? ""}
+          onChange={(e) => onChange(e.target.value || null)}
+          className="h-8 max-w-full rounded-md bg-raised px-2 text-sm text-ink ring-1 ring-control ring-inset"
+        >
+          <option value="">Nobody</option>
+          {members
+            .filter((m) => m.role !== "viewer" && m.role !== "commenter")
+            .map((m) => (
+              <option key={m.userId} value={m.userId}>
+                {m.userId === me ? `${m.name} (you)` : m.name}
+              </option>
+            ))}
+        </select>
+      </dd>
+    </>
   );
 }

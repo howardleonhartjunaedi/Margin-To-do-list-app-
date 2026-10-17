@@ -15,14 +15,16 @@ import { AppUIProvider, useAppUI } from "./app-ui";
 import { SidebarContent } from "./sidebar";
 import { NotificationWatcher } from "./notifications";
 import { CommandPalette } from "./command-palette";
+import { Realtime } from "./realtime";
 import { FocusProvider } from "@/components/focus/focus-provider";
 import { ShortcutsDialog } from "./shortcuts-dialog";
-import { useSettings, useSettingsActions } from "@/lib/data";
+import { setCurrentUserId, useSettings, useSettingsActions } from "@/lib/data";
 import { refreshPushSubscription } from "@/lib/push";
 
-type User = { name: string; email: string };
+type User = { id: string; name: string; email: string };
 
 export function AppShell({ user, children }: { user: User; children: React.ReactNode }) {
+  setCurrentUserId(user.id);
   return (
     <AppUIProvider>
       <FocusProvider>
@@ -112,6 +114,7 @@ function Shell({ user, children }: { user: User; children: React.ReactNode }) {
       <QuickAddDialog />
       <TaskDetailSheet />
       <NotificationWatcher />
+      <Realtime />
       <CommandPalette />
       <ShortcutsDialog />
       <FirstRunSync />

@@ -13,7 +13,8 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const params = useSearchParams();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const next = params.get("next")?.startsWith("/") ? params.get("next")! : "/today";
+  const rawNext = params.get("next");
+  const next = rawNext?.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/today";
   const reauth = params.has("reauth");
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {

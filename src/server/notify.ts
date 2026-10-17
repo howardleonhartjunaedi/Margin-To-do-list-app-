@@ -5,7 +5,8 @@ import type { Notification, ReminderInfo, Settings } from "@/lib/types";
 import { db } from "./db";
 import { notification, pushSubscription, reminder, task, userSettings } from "./db/schema";
 import { addReminder, getSettings, recomputeAllForUser, snoozeReminder } from "./reminders";
-import { ClientError } from "./tasks";
+import { ClientError } from "./errors";
+import { requireTaskRole } from "./access";
 
 /* ------------------------------ Reminders ------------------------------ */
 
@@ -25,14 +26,12 @@ export async function listReminders(userId: string, taskId: string): Promise<Rem
 }
 
 export async function createReminder(userId: string, taskId: string, spec: { offsetMinutes: number } | { at: string }) {
-  const [t] = await db
-    .select({ id: task.id, dueDate: task.dueDate, dueTime: task.dueTime })
-    .from(task)
-    .where(and(eq(task.id, taskId), eq(task.userId, userId)));
-  if (!t) throw new ClientError("That task doesn’t exist any more.", 404);
-  if ("offsetMinutes" in spec && !t.dueDate) throw new ClientError("Give the task a date first, then a reminder before it.");
+  // Anyone who can see a task can set their own reminders on it.
+  await requireTaskRole(db, userId, taskId, "viewer");
+  const [t] = await db.select({ id: task.id, dueDate: task.dueDate, dueTime: task.dueTime }).from(task).where(eq(task.id, taskId));
+  if ("offsetMinutes" in spec && !t.dueDate) throw new ClientError("Give the task a date first, then a reminder before it.", 422);
   const [{ n }] = await db.select({ n: count() }).from(reminder).where(eq(reminder.taskId, taskId));
-  if (n >= 10) throw new ClientError("A task can have up to 10 reminders.");
+  if (n >= 10) throw new ClientError("A task can have up to 10 reminders.", 422);
   return addReminder(db, userId, t, "at" in spec ? { at: new Date(spec.at) } : spec);
 }
 
