@@ -774,7 +774,7 @@ function TaskListDemo() {
               className="relative"
             >
               <EmptyState
-                mark="✓"
+                mark="Fin."
                 title="Today is clear."
                 body="Nothing else is due. Tomorrow has 3 tasks if you want a head start."
                 action={

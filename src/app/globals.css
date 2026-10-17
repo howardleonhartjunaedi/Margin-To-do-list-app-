@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * Margin design tokens Ã¢â‚¬â€ the single source of truth.
+ * Margin design tokens — the single source of truth.
  * Screens use only these. Tailwind's default palette, radii and shadows are
  * cleared below so an off-system value fails to compile instead of slipping in.
  * scripts/check-contrast.mjs parses the two theme blocks; keep them flat.
@@ -100,7 +100,7 @@
   --text-*: initial;
   --ease-*: initial;
 
-  /* 4pt base grid: p-1 = 4px, p-2 = 8px, p-4 = 16px Ã¢â‚¬Â¦ */
+  /* 4pt base grid: p-1 = 4px, p-2 = 8px, p-4 = 16px … */
   --spacing: 0.25rem;
 
   /* Two radii, plus rounded-full for true circles (dots, avatars, switch thumbs) */
@@ -108,7 +108,7 @@
   --radius-md: 8px;
 
   /* Modular scale, ratio 1.25 (major third), base 16px */
-  --text-2xs: 0.6875rem; /* 11 Ã¢â‚¬â€ mono meta only */
+  --text-2xs: 0.6875rem; /* 11 — mono meta only */
   --text-2xs--line-height: 1rem;
   --text-2xs--letter-spacing: 0.02em;
   --text-xs: 0.8125rem; /* 13 */
@@ -154,6 +154,23 @@
   }
   @keyframes pop-out {
     to { opacity: 0; transform: scale(0.97); }
+  }
+  --animate-sheet-in-left: sheet-in-left var(--dur-slow) var(--ease-enter) both;
+  --animate-sheet-out-left: sheet-out-left var(--dur-base) var(--ease-exit) both;
+  --animate-sheet-in-right: sheet-in-right var(--dur-slow) var(--ease-enter) both;
+  --animate-sheet-out-right: sheet-out-right var(--dur-base) var(--ease-exit) both;
+
+  @keyframes sheet-in-left {
+    from { transform: translateX(-100%); }
+  }
+  @keyframes sheet-out-left {
+    to { transform: translateX(-100%); }
+  }
+  @keyframes sheet-in-right {
+    from { transform: translateX(100%); }
+  }
+  @keyframes sheet-out-right {
+    to { transform: translateX(100%); }
   }
   @keyframes fade-in {
     from { opacity: 0; }
@@ -223,8 +240,12 @@
 [data-motion="reduced"] [class*="animate-pop-in"] {
   animation-name: fade-in;
 }
-[data-motion="reduced"] [class*="animate-pop-out"] {
+[data-motion="reduced"] [class*="animate-pop-out"],
+[data-motion="reduced"] [class*="animate-sheet-out"] {
   animation-name: fade-out;
+}
+[data-motion="reduced"] [class*="animate-sheet-in"] {
+  animation-name: fade-in;
 }
 [data-motion="off"] *,
 [data-motion="off"] *::before,
@@ -290,7 +311,7 @@ html[data-cursor="custom"] :is(input, textarea, [contenteditable="true"]) {
   cursor: text;
 }
 
-/* Skeleton shimmer Ã¢â‚¬â€ opacity only, no layout */
+/* Skeleton shimmer — opacity only, no layout */
 @keyframes skeleton-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.55; }
