@@ -20,6 +20,9 @@ import { FocusProvider } from "@/components/focus/focus-provider";
 import { ShortcutsDialog } from "./shortcuts-dialog";
 import { setCurrentUserId, useSettings, useSettingsActions } from "@/lib/data";
 import { refreshPushSubscription } from "@/lib/push";
+import { api } from "@/lib/api";
+import { toast } from "@/components/ui/toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 type User = { id: string; name: string; email: string };
 
@@ -144,6 +147,7 @@ function useOnline() {
 function FirstRunSync() {
   const settings = useSettings().data;
   const save = useSettingsActions();
+  const qc = useQueryClient();
   useEffect(() => {
     if (!settings) return;
     const key = "margin:tz-adopted";
@@ -155,6 +159,21 @@ function FirstRunSync() {
       }
     } catch {}
     void refreshPushSubscription();
+    // Tasks typed into the landing-page demo before signing up: bring them in once.
+    try {
+      const demo = localStorage.getItem("margin:demo-tasks");
+      if (demo !== null) {
+        localStorage.removeItem("margin:demo-tasks");
+        if (demo.trim())
+          void api.importData({ format: "text", content: demo }).then(
+            (r) => {
+              qc.invalidateQueries();
+              toast(`Added the ${r.tasks === 1 ? "task" : `${r.tasks} tasks`} you wrote on the front page.`);
+            },
+            () => {},
+          );
+      }
+    } catch {}
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!settings]);
   return null;

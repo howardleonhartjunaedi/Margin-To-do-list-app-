@@ -256,6 +256,13 @@
 
 /* ---------- Base ---------- */
 @layer base {
+  /* The italic cut is its own (lazily loaded) family; point display emphasis at it. */
+  .font-display em,
+  .font-display i,
+  em.font-display {
+    font-family: var(--font-newsreader-italic), var(--font-display);
+  }
+
   html {
     background: var(--c-bg);
     color: var(--c-ink);

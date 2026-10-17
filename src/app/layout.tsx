@@ -3,7 +3,7 @@ import { CustomCursor } from "@/components/cursor/custom-cursor";
 import { PreferencesProvider, preferencesBootScript } from "@/components/providers/preferences";
 import { Toaster } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { display, mono, sans } from "./fonts";
+import { display, displayItalic, mono, sans } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="en"
       data-theme="light"
       data-motion="full"
-      className={`${display.variable} ${sans.variable} ${mono.variable}`}
+      className={`${display.variable} ${displayItalic.variable} ${sans.variable} ${mono.variable}`}
       suppressHydrationWarning
     >
       <head>

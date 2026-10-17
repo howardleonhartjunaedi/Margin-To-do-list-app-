@@ -12,7 +12,7 @@ import * as schema from "./schema";
 /*
  * One Postgres dialect everywhere:
  *  - DATABASE_URL set   → a real Postgres server (production, Docker)
- *  - DATABASE_URL unset → embedded PGlite in .data/pglite (local dev, nothing to install)
+ *  - DATABASE_URL unset → embedded PGlite in .data/pglite or PGLITE_DIR (local dev, nothing to install)
  * Migrations in ./drizzle run once per process before the first query.
  */
 
@@ -25,7 +25,9 @@ function create() {
     const db = drizzlePostgres({ client, schema, casing: "snake_case" });
     return { db, ready: migratePostgres(db, { migrationsFolder }) };
   }
-  const dir = path.join(process.cwd(), ".data", "pglite");
+  // PGLITE_DIR lets a second local server (e.g. a production build under test) use its own
+  // folder: PGlite allows only one process per data directory.
+  const dir = path.resolve(process.env.PGLITE_DIR ?? path.join(".data", "pglite"));
   mkdirSync(path.dirname(dir), { recursive: true }); // PGlite only creates the last segment
   const client = new PGlite(dir);
   const db = drizzlePglite({ client, schema, casing: "snake_case" });
