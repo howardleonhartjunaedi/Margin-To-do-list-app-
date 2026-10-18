@@ -27,5 +27,11 @@ export default {
     signIn: "Couldn’t sign you in. Try again.",
     signUp: "Couldn’t create your account. Try again.",
   },
+  preview: {
+    title: "Accounts aren’t open yet.",
+    body: "This is a preview of Margin. Look around the front page and try quick add in your browser — signing up comes later.",
+    tryIt: "Try quick add",
+    back: "Back to the front page",
+  },
   aside: ["Write it down.", "Give it a day.", "Do it", ", then forget it."],
 };

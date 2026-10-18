@@ -3,6 +3,7 @@
 // Netlify runs scheduled functions on published production deploys only.
 
 export default async () => {
+  if (!process.env.CRON_SECRET) return; // a preview deploy, or not set up yet: nothing to run
   const res = await fetch(`${process.env.URL}/api/cron/tick`, {
     method: "POST",
     headers: { authorization: `Bearer ${process.env.CRON_SECRET}` },

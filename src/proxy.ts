@@ -1,6 +1,7 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse, type NextRequest } from "next/server";
 import { isLocale, LOCALES, matchLocale } from "@/i18n/locales";
+import { PREVIEW } from "@/server/site";
 
 /*
  * Optimistic routing on the session cookie only (no DB hit here).
@@ -13,6 +14,10 @@ const FRONT = ["/", ...LOCALES.map((l) => `/${l}`)];
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  if (pathname.startsWith("/api/")) {
+    // A preview build has no database behind the API: say so instead of failing on each call.
+    return PREVIEW ? Response.json({ error: "This is a preview: accounts aren’t available." }, { status: 503 }) : NextResponse.next();
+  }
   const signedIn = Boolean(getSessionCookie(req));
 
   if (!signedIn && APP.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
@@ -41,5 +46,5 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/en", "/id", "/sign-in", "/sign-up", "/today", "/inbox", "/upcoming", "/project/:path*", "/settings", "/filter/:path*", "/focus", "/habits", "/stats", "/plan", "/review"],
+  matcher: ["/api/:path*", "/", "/en", "/id", "/sign-in", "/sign-up", "/today", "/inbox", "/upcoming", "/project/:path*", "/settings", "/filter/:path*", "/focus", "/habits", "/stats", "/plan", "/review"],
 };

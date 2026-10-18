@@ -29,6 +29,12 @@ const auth: Messages["auth"] = {
     signIn: "Tidak bisa masuk. Coba lagi.",
     signUp: "Akun tidak bisa dibuat. Coba lagi.",
   },
+  preview: {
+    title: "Pendaftaran belum dibuka.",
+    body: "Ini pratinjau Margin. Jelajahi halaman depan dan coba tambah cepat di browser Anda — pendaftaran menyusul.",
+    tryIt: "Coba tambah cepat",
+    back: "Kembali ke halaman depan",
+  },
   aside: ["Catat.", "Beri tanggal.", "Kerjakan", ", lalu lupakan."],
 };
 export default auth;

@@ -67,6 +67,8 @@ Netlify runs the whole app: pages and the API on Netlify Functions, reminders fr
    - optional: `VAPID_*` for push, `SMTP_URL` / `EMAIL_FROM` for email (without SMTP, emails are skipped), `ANTHROPIC_API_KEY` for AI
 4. Deploy. Each build applies new migrations first (`scripts/migrate.ts`).
 
+**Preview without a database:** deploy with no database set and the build becomes a look-only preview: the front page and Try it work, and Sign in / Create account explain that accounts aren't open. Add a database and redeploy to turn the full app on. (Locally: `PREVIEW=1 npm run build`.)
+
 What differs from a single server: reminders can arrive up to a minute late, and changes from other devices or collaborators appear within about 15 seconds (open tabs poll) rather than instantly. The AI hourly limit is counted per function instance.
 
 ## Configuration
