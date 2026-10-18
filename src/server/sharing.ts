@@ -8,6 +8,9 @@ import { project, projectInvite, projectMember, task, user } from "./db/schema";
 import { ClientError } from "./errors";
 import { emit } from "./events";
 import { realChannels } from "./scheduler/channels";
+import { m } from "@/i18n/catalogs";
+import { isLocale, type Locale } from "@/i18n/locales";
+import { getSettings } from "@/server/reminders";
 
 const INVITE_DAYS = 14;
 const baseUrl = () => process.env.BETTER_AUTH_URL ?? "";
@@ -57,26 +60,29 @@ export async function createInvite(userId: string, projectId: string, input: { e
   });
   const url = `${baseUrl()}/invite/${id}`;
   if (email) {
-    const [[inviter], [p]] = await Promise.all([
+    const [[inviter], [p], s] = await Promise.all([
       db.select({ name: user.name }).from(user).where(eq(user.id, userId)),
       db.select({ name: project.name }).from(project).where(eq(project.id, projectId)),
+      getSettings(db, userId),
     ]);
+    // The invitee may not have an account yet: write in the inviter's language.
+    const locale: Locale = isLocale(s.locale) ? s.locale : "en";
+    const words = m(locale);
     await realChannels(db)
       .email({
         userId,
         email,
-        title: `${inviter?.name ?? "Someone"} invited you to “${p?.name}”`,
-        body: `You’ve been invited to join the project “${p?.name}” on Margin as ${article(input.role)} ${input.role}.\nThe link works for ${INVITE_DAYS} days.`,
+        title: words.email.inviteTitle(inviter?.name ?? words.email.someone, p?.name ?? ""),
+        body: words.email.inviteBody(p?.name ?? "", words.share.roles[input.role], INVITE_DAYS),
         url,
         tag: `invite-${id.slice(0, 8)}`,
-        footer: "You got this because someone invited you to a project on Margin. Ignore it if it’s not for you.",
+        footer: words.email.inviteFooter,
+        locale,
       })
       .catch((e) => console.error("[invite] email", e));
   }
   return { id, url, email, role: input.role };
 }
-
-const article = (r: string) => (/^[aeiou]/.test(r) ? "an" : "a");
 
 export async function revokeInvite(userId: string, inviteId: string) {
   const [inv] = await db.select({ projectId: projectInvite.projectId }).from(projectInvite).where(eq(projectInvite.id, inviteId));

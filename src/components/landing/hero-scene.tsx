@@ -195,7 +195,7 @@ export default function HeroScene({ inputs, onReady }: { inputs: SceneInputs; on
     setPalette(readPalette());
     // Re-read colors when the theme flips.
     const mo = new MutationObserver(() => setPalette(readPalette()));
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "data-accent", "data-contrast"] });
     const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting && !document.hidden));
     if (wrap.current) io.observe(wrap.current);
     const vis = () => setVisible(!document.hidden);

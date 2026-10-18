@@ -1,0 +1,9 @@
+# Automatic HTTPS for $DOMAIN (or a local certificate for "localhost"), with compression.
+# Next doesn't compress API responses itself; a 10,000-task list is ~10× smaller gzipped.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:3000 {
+		# The live-update stream must not be buffered.
+		flush_interval -1
+	}
+}

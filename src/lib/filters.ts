@@ -1,5 +1,6 @@
 import { addDays, type ISODate } from "./dates";
 import type { Priority, Project, Task } from "./types";
+import { m } from "@/i18n/catalogs";
 
 /*
  * A filter narrows any task set. Within a field, values are OR'ed ("P1 or P2");
@@ -22,13 +23,10 @@ export interface Filter {
 export const EMPTY_FILTER: Filter = { priorities: [], projects: [], labels: [], due: [], text: "" };
 
 const DUE: DueBucket[] = ["overdue", "today", "week", "dated", "none"];
-export const DUE_LABEL: Record<DueBucket, string> = {
-  overdue: "Overdue",
-  today: "Today",
-  week: "Next 7 days",
-  dated: "Has a date",
-  none: "No date",
-};
+export const DUE_BUCKETS: DueBucket[] = ["overdue", "today", "week", "dated", "none"];
+
+/** "Overdue", "Next 7 days"… in the language on screen. */
+export const dueLabel = (d: DueBucket) => m().filter.due[d];
 
 export function isEmptyFilter(f: Filter) {
   return !f.priorities.length && !f.projects.length && !f.labels.length && !f.due.length && !f.text.trim();
@@ -104,11 +102,12 @@ export const applyFilter = (tasks: Task[], f: Filter, today: ISODate) =>
 
 /** "P1, P2 · Work · @calls · Overdue · “invoice”" */
 export function describeFilter(f: Filter, projects: Pick<Project, "id" | "name">[] = []): string {
+  const t = m();
   const parts: string[] = [];
   if (f.priorities.length) parts.push(f.priorities.map((p) => `P${p}`).join(", "));
-  if (f.projects.length) parts.push(f.projects.map((id) => (id === "inbox" ? "Inbox" : (projects.find((p) => p.id === id)?.name ?? "A deleted project"))).join(", "));
+  if (f.projects.length) parts.push(f.projects.map((id) => (id === "inbox" ? t.nav.inbox : (projects.find((p) => p.id === id)?.name ?? t.filter.deletedProject))).join(", "));
   if (f.labels.length) parts.push(f.labels.map((l) => `@${l}`).join(", "));
-  if (f.due.length) parts.push(f.due.map((d) => DUE_LABEL[d]).join(", "));
+  if (f.due.length) parts.push(f.due.map(dueLabel).join(", "));
   if (f.text.trim()) parts.push(`“${f.text.trim()}”`);
-  return parts.join(" · ") || "Everything open";
+  return parts.join(" · ") || t.filter.everythingOpen;
 }

@@ -1,4 +1,5 @@
-import * as chrono from "chrono-node";
+import type * as chrono from "chrono-node";
+import { bilingual, ID_DAY_RE, idDayIndex } from "./indonesian";
 import { toISODate, type ISODate } from "../dates";
 
 /*
@@ -60,8 +61,26 @@ interface Recurrence {
   first: (now: Date) => Date | null;
 }
 
+/** "setiap senin dan kamis" → "every monday and thursday": Indonesian repeats reuse the English rules. */
+function fromIndonesian(p: string): string {
+  const EN_DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+  return p
+    .replace(/^(?:setiap|tiap)\s+/, "every ")
+    .replace(/^harian$/, "daily")
+    .replace(/^mingguan$/, "weekly")
+    .replace(/^bulanan$/, "monthly")
+    .replace(/^tahunan$/, "yearly")
+    .replace(/^every hari kerja$/, "every weekday")
+    .replace(/^every (?:hari\s+)?(?=(?:senin|selasa|rabu|kamis|jum'?at|sabtu|minggu)\b(?!\s+depan))/, "every ")
+    .replace(/^every (\d+) (hari|minggu|pekan|bulan|tahun)$/, (_m, n, u) => `every ${n} ${{ hari: "day", minggu: "week", pekan: "week", bulan: "month", tahun: "year" }[u as "hari"]}`)
+    .replace(/^every (hari|minggu|pekan|bulan|tahun)$/, (_m, u) => `every ${{ hari: "day", minggu: "week", pekan: "week", bulan: "month", tahun: "year" }[u as "hari"]}`)
+    .replace(/^every tanggal (\d{1,2})$/, "every $1")
+    .replace(/\b(senin|selasa|rabu|kamis|jum'?at|sabtu|minggu)\b/g, (d) => EN_DAYS[idDayIndex(d)])
+    .replace(/ dan /g, " and ");
+}
+
 function parseRecurrence(phrase: string): Recurrence | null {
-  const p = phrase.toLowerCase().replace(/\s+/g, " ").trim();
+  const p = fromIndonesian(phrase.toLowerCase().replace(/\s+/g, " ").trim());
   const today = (now: Date) => now;
 
   if (/^(every ?day|daily)$/.test(p)) return { rrule: "FREQ=DAILY", label: "Every day", first: today };
@@ -132,6 +151,13 @@ const RECURRENCE_RE = new RegExp(
     `\\bevery (?:${DAY_RE})(?:(?:, ?| and | & )(?:${DAY_RE}))*\\b`,
     "\\bevery ?day\\b",
     "\\b(?:daily|weekly|monthly|yearly|annually)\\b",
+    // Bahasa Indonesia
+    "\\b(?:setiap|tiap) hari kerja\\b",
+    "\\b(?:setiap|tiap) \\d+ (?:hari|minggu|pekan|bulan|tahun)\\b",
+    "\\b(?:setiap|tiap) tanggal \\d{1,2}\\b",
+    `\\b(?:setiap|tiap) (?:hari )?${ID_DAY_RE}(?: dan ${ID_DAY_RE}|, ?${ID_DAY_RE})*\\b(?! depan)`,
+    "\\b(?:setiap|tiap) (?:hari|minggu|pekan|bulan|tahun)\\b",
+    "\\b(?:harian|mingguan|bulanan|tahunan)\\b",
   ].join("|"),
   "gi",
 );
@@ -157,10 +183,10 @@ export function parseQuickAdd(input: string, opts: ParseOptions = {}): ParsedTas
 
   // Estimate — "~45m", "~2h", "~1h30"
   let estimateMinutes: number | null = null;
-  const em = masked.match(/(?<=^|\s)~(\d+(?:\.\d+)?)\s?(h|hrs?|hours?|m|mins?|minutes?)(?:\s?(\d{1,2})\s?(?:m|mins?)?)?(?=\s|$)/i);
+  const em = masked.match(/(?<=^|\s)~(\d+(?:\.\d+)?)\s?(h|hrs?|hours?|j|jam|m|mins?|minutes?|mnt|menit)(?:\s?(\d{1,2})\s?(?:m|mins?|mnt)?)?(?=\s|$)/i);
   if (em) {
     const n = Number(em[1]);
-    const minutes = /^h/i.test(em[2]) ? n * 60 + Number(em[3] ?? 0) : n;
+    const minutes = /^[hj]/i.test(em[2]) ? n * 60 + Number(em[3] ?? 0) : n;
     if (minutes > 0 && minutes <= 24 * 60) {
       estimateMinutes = Math.round(minutes);
       take("estimate", em.index!, em.index! + em[0].length);
@@ -199,7 +225,7 @@ export function parseQuickAdd(input: string, opts: ParseOptions = {}): ParsedTas
   // Date & time
   let dueDate: ISODate | null = null;
   let dueTime: string | null = null;
-  const [hit] = chrono.en.casual.parse(masked, now, { forwardDate: true });
+  const [hit] = bilingual.parse(masked, now, { forwardDate: true });
   if (hit && isPlausibleDate(hit)) {
     const start = hit.start;
     const d = start.date();
@@ -218,7 +244,7 @@ export function parseQuickAdd(input: string, opts: ParseOptions = {}): ParsedTas
     }
     // Include a leading "on"/"at"/"by"/"due" in the consumed range so it leaves the title.
     let s = hit.index;
-    const lead = masked.slice(0, s).match(/\b(?:on|at|by|due|for)\s+$/i);
+    const lead = masked.slice(0, s).match(/\b(?:on|at|by|due|for|pada|tanggal|tgl)\s+$/i);
     if (lead) s -= lead[0].length;
     take("date", s, hit.index + hit.text.length);
   }

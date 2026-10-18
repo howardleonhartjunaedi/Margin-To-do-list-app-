@@ -19,8 +19,8 @@ import { useStats } from "@/lib/data-productivity";
 import * as F from "@/lib/focus";
 import type { View } from "@/lib/types";
 import { useFocus } from "./focus-provider";
+import { useT } from "@/i18n/client";
 
-const PHASE_LABEL: Record<F.Phase, string> = { focus: "Focus", short: "Short break", long: "Long break" };
 const R = 128;
 const C = 2 * Math.PI * R;
 
@@ -39,18 +39,21 @@ export function FocusView() {
   const prog = timer ? F.progress(timer, now) : 0;
   const isBreak = phase !== "focus";
   const round = (timer?.round ?? 0) % prefs.roundsPerLong;
+  const tr = useT();
+  const t = tr.focus;
+  const PHASE_LABEL = t.phases;
 
   return (
     <>
       <ViewHeader
-        title="Focus"
-        sub={`${F.minutesLabel(minutesToday)} focused today`}
+        title={tr.nav.focus}
+        sub={t.focusedToday(F.minutesLabel(minutesToday))}
         actions={<FocusSettings />}
       />
 
       <div className="grid items-center gap-10 md:grid-cols-[auto_1fr]">
         {/* Ring */}
-        <div className="relative mx-auto size-[min(300px,80vw)]" role="timer" aria-live="off" aria-label={`${PHASE_LABEL[phase]}: ${F.clock(remainingMs)} left`}>
+        <div className="relative mx-auto size-[min(300px,80vw)]" role="timer" aria-live="off" aria-label={t.timerLeft(PHASE_LABEL[phase], F.clock(remainingMs))}>
           <svg viewBox="0 0 300 300" className="size-full -rotate-90">
             <circle cx="150" cy="150" r={R} fill="none" stroke="var(--c-sunken)" strokeWidth="6" />
             <circle
@@ -74,10 +77,10 @@ export function FocusView() {
                 transition={{ duration: duration.base, ease: ease.enter }}
                 className="font-mono text-2xs tracking-wider text-ink-3 uppercase"
               >
-                {timer?.pausedAt ? "Paused" : PHASE_LABEL[phase]}
+                {timer?.pausedAt ? t.paused : PHASE_LABEL[phase]}
               </motion.p>
               <p className={cn("mt-1 font-mono text-5xl text-ink tabular-nums", timer?.pausedAt && "text-ink-3")}>{F.clock(remainingMs)}</p>
-              <div className="mt-3 flex justify-center gap-1.5" aria-label={`Round ${round + 1} of ${prefs.roundsPerLong}`}>
+              <div className="mt-3 flex justify-center gap-1.5" role="img" aria-label={t.round(round + 1, prefs.roundsPerLong)}>
                 {Array.from({ length: prefs.roundsPerLong }, (_, i) => (
                   <span key={i} className={cn("size-1.5 rounded-full", i < round ? "bg-accent" : "bg-line-strong")} />
                 ))}
@@ -90,7 +93,7 @@ export function FocusView() {
         <div className="flex max-w-md flex-col gap-6">
           {!timer && (
             <Segmented<F.Phase>
-              label="Session type"
+              label={t.sessionType}
               value={phase}
               onValueChange={setPicked}
               options={(["focus", "short", "long"] as F.Phase[]).map((p) => ({ value: p, label: PHASE_LABEL[p] }))}
@@ -101,31 +104,31 @@ export function FocusView() {
           <div className="flex flex-wrap items-center gap-2">
             {!timer ? (
               <Button variant="primary" size="lg" magnetic onClick={() => f.start(picked)}>
-                <Icon icon={Play} /> Start {F.phaseMinutes(picked, prefs)} minutes
+                <Icon icon={Play} /> {t.start(F.phaseMinutes(picked, prefs))}
               </Button>
             ) : timer.pausedAt ? (
               <Button variant="primary" size="lg" magnetic onClick={f.resume}>
-                <Icon icon={Play} /> Resume
+                <Icon icon={Play} /> {t.resume}
               </Button>
             ) : (
               <Button variant="primary" size="lg" onClick={f.pause}>
-                <Icon icon={Pause} /> Pause
+                <Icon icon={Pause} /> {t.pause}
               </Button>
             )}
             {timer && (
               <>
-                <Tooltip content="Add 5 minutes">
-                  <Button size="lg" onClick={() => f.adjust(5)} aria-label="Add 5 minutes">
+                <Tooltip content={t.add5}>
+                  <Button size="lg" onClick={() => f.adjust(5)} aria-label={t.add5}>
                     <Icon icon={Plus} /> 5
                   </Button>
                 </Tooltip>
-                <Tooltip content={isBreak ? "Skip the break" : "Skip to break"}>
-                  <Button size="lg" variant="ghost" onClick={f.skip} aria-label={isBreak ? "Skip the break" : "Skip to break"}>
+                <Tooltip content={isBreak ? t.skipBreak : t.skipToBreak}>
+                  <Button size="lg" variant="ghost" onClick={f.skip} aria-label={isBreak ? t.skipBreak : t.skipToBreak}>
                     <Icon icon={SkipForward} />
                   </Button>
                 </Tooltip>
-                <Tooltip content="Stop — time so far is still counted">
-                  <Button size="lg" variant="ghost" onClick={f.stop} aria-label="Stop">
+                <Tooltip content={t.stopHint}>
+                  <Button size="lg" variant="ghost" onClick={f.stop} aria-label={t.stop}>
                     <Icon icon={Square} />
                   </Button>
                 </Tooltip>
@@ -134,7 +137,7 @@ export function FocusView() {
           </div>
 
           <label className="flex flex-col gap-1.5 text-sm">
-            <span className="text-ink-2">Working on</span>
+            <span className="text-ink-2">{t.workingOn}</span>
             <select
               value={timer?.taskId ?? ""}
               disabled={!timer}
@@ -144,7 +147,7 @@ export function FocusView() {
               }}
               className="h-10 rounded-md bg-raised px-3 text-sm text-ink ring-1 ring-control ring-inset disabled:opacity-60"
             >
-              <option value="">{timer ? "Nothing in particular" : "Start a session to pick a task"}</option>
+              <option value="">{timer ? t.nothingParticular : t.startToPick}</option>
               {timer?.taskId && !todays.some((t) => t.id === timer.taskId) && <option value={timer.taskId}>{f.taskTitle}</option>}
               {todays.map((t) => (
                 <option key={t.id} value={t.id}>
@@ -153,9 +156,13 @@ export function FocusView() {
               ))}
             </select>
             <span className="text-xs text-ink-3">
-              Or start from any task: open it and choose <span className="text-ink-2">Focus</span>.{" "}
+              {t.fromAnyTask(
+                <span key="f" className="text-ink-2">
+                  {tr.detail.focus}
+                </span>,
+              )}
               <Link href="/today" className="underline decoration-line-strong underline-offset-4 hover:text-ink-2">
-                Today’s list
+                {t.todaysList}
               </Link>
             </span>
           </label>
@@ -167,6 +174,7 @@ export function FocusView() {
 
 function FocusSettings() {
   const { prefs, setPrefs } = useFocus();
+  const t = useT().focus;
   const num = (key: "focusMin" | "shortMin" | "longMin" | "roundsPerLong", label: string, max: number) => (
     <label className="flex items-center justify-between gap-4 text-sm text-ink">
       {label}
@@ -186,21 +194,21 @@ function FocusSettings() {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label="Timer settings">
+        <Button variant="ghost" size="icon-sm" aria-label={t.settings}>
           <Icon icon={Settings2} />
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="flex w-72 flex-col gap-3 p-4">
-        {num("focusMin", "Focus (minutes)", 180)}
-        {num("shortMin", "Short break", 60)}
-        {num("longMin", "Long break", 90)}
-        {num("roundsPerLong", "Rounds before a long break", 8)}
+        {num("focusMin", t.focusMinutes, 180)}
+        {num("shortMin", t.shortBreak, 60)}
+        {num("longMin", t.longBreak, 90)}
+        {num("roundsPerLong", t.rounds, 8)}
         <label className="flex items-center justify-between text-sm text-ink">
-          Start breaks automatically
+          {t.autoBreaks}
           <Switch checked={prefs.autoStartBreaks} onCheckedChange={(v) => setPrefs({ autoStartBreaks: v })} />
         </label>
         <label className="flex items-center justify-between text-sm text-ink">
-          Chime when time’s up
+          {t.chime}
           <Switch checked={prefs.sound} onCheckedChange={(v) => setPrefs({ sound: v })} />
         </label>
       </PopoverContent>
@@ -211,6 +219,7 @@ function FocusSettings() {
 /** Compact running timer for the sidebar. Hidden when idle. */
 export function FocusPill({ onNavigate }: { onNavigate?: () => void }) {
   const { timer, now, pause, resume } = useFocus();
+  const t = useT().focus;
   if (!timer) return null;
   const isBreak = timer.phase !== "focus";
   return (
@@ -218,9 +227,9 @@ export function FocusPill({ onNavigate }: { onNavigate?: () => void }) {
       <Link href="/focus" onClick={onNavigate} className="flex min-w-0 flex-1 items-center gap-2 py-1 text-sm text-ink">
         <span className={cn("size-2 shrink-0 rounded-full", timer.pausedAt ? "bg-ink-3" : isBreak ? "bg-success" : "bg-accent")} />
         <span className="font-mono text-xs tabular-nums">{F.clock(F.remaining(timer, now))}</span>
-        <span className="truncate text-xs text-ink-2">{isBreak ? "Break" : (timer.taskTitle ?? "Focus")}</span>
+        <span className="truncate text-xs text-ink-2">{isBreak ? t.break : (timer.taskTitle ?? t.phases.focus)}</span>
       </Link>
-      <Button variant="ghost" size="icon-sm" aria-label={timer.pausedAt ? "Resume" : "Pause"} onClick={timer.pausedAt ? resume : pause}>
+      <Button variant="ghost" size="icon-sm" aria-label={timer.pausedAt ? t.resume : t.pause} onClick={timer.pausedAt ? resume : pause}>
         <Icon icon={timer.pausedAt ? Play : Pause} size="xs" />
       </Button>
     </div>

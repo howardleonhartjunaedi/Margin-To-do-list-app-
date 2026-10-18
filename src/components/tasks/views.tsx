@@ -1,5 +1,6 @@
 "use client";
 
+import { SortInboxButton } from "@/components/ai/ai-suggestions";
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -25,17 +26,16 @@ import { EmptyState } from "@/components/ui/states";
 import { toastWithUndo } from "@/components/ui/toast";
 import { useProjectActions, useProjects, useTaskActions } from "@/lib/data";
 import { useFilterActions, useSavedFilters } from "@/lib/data-filters";
-import { addDays, dayHeading, fromISODate } from "@/lib/dates";
+import { addDays, dayHeading, formatDate } from "@/lib/dates";
 import { describeFilter, decodeFilter } from "@/lib/filters";
 import { projectDot } from "@/lib/project-colors";
 import { cn } from "@/lib/cn";
 import type { Task, View } from "@/lib/types";
+import { useT } from "@/i18n/client";
 import { InlineAdd } from "./inline-add";
 import { TaskList, type TaskGroup } from "./task-list";
 
-const LONG_DATE = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" });
-const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
-const count = (n: number | null) => (n === null ? "" : plural(n, "task"));
+const LONG: Intl.DateTimeFormatOptions = { weekday: "long", day: "numeric", month: "long" };
 
 /* ------------------------------ Today ------------------------------ */
 
@@ -43,11 +43,14 @@ export function TodayView() {
   const { today } = useAppUI();
   const view = useMemo<View>(() => ({ kind: "today", today }), [today]);
   const actions = useTaskActions();
+  const tr = useT();
+  const t = tr.views;
+  const count = (n: number | null) => (n === null ? "" : t.taskCount(n));
 
   return (
     <ScopeView
-      title="Today"
-      sub={(n) => [LONG_DATE.format(fromISODate(today)), count(n)].filter(Boolean).join(" · ")}
+      title={tr.nav.today}
+      sub={(n) => [formatDate(today, LONG), count(n)].filter(Boolean).join(" · ")}
       layouts={["list", "board", "matrix"]}
       listView={view}
       boardGroupByProject
@@ -63,23 +66,23 @@ export function TodayView() {
         const moveAll = () => {
           const moved = overdue.filter((t) => !t.completedAt);
           moved.forEach((t) => void actions.update(t, { dueDate: today }));
-          toastWithUndo(`Moved ${plural(moved.length, "task")} to today.`, () =>
+          toastWithUndo(t.movedToToday(moved.length), () =>
             moved.forEach((t) => void actions.update({ ...t, dueDate: today }, { dueDate: t.dueDate })),
           );
         };
         const groups: TaskGroup[] = [
           {
             key: "overdue",
-            title: "Overdue",
+            title: t.overdue,
             tone: "danger",
             action: (
               <Button size="sm" variant="ghost" onClick={moveAll}>
-                Move all to today
+                {t.moveAllToToday}
               </Button>
             ),
             tasks: overdue,
           },
-          { key: "today", title: overdue.some((t) => !t.completedAt) ? "Today" : undefined, hideDate: true, tasks: due },
+          { key: "today", title: overdue.some((x) => !x.completedAt) ? tr.nav.today : undefined, hideDate: true, tasks: due },
         ];
         return (
           <TaskList
@@ -88,15 +91,11 @@ export function TodayView() {
             empty={
               <EmptyState
                 mark="*"
-                title="Nothing due today."
-                body={
-                  <>
-                    A quiet day, or a blank page. Press <Kbd>Q</Kbd> to add something, or pull a task forward from Upcoming.
-                  </>
-                }
+                title={t.todayEmpty}
+                body={<>{t.todayEmptyBody(<Kbd key="k">Q</Kbd>)}</>}
               />
             }
-            cleared={<EmptyState mark="Fin." title="Today is clear." body="That’s everything that was due. Tomorrow can wait until tomorrow." />}
+            cleared={<EmptyState mark="Fin." title={t.todayClear} body={t.todayClearBody} />}
             footer={<InlineAdd dueDate={today} />}
           />
         );
@@ -109,10 +108,14 @@ export function TodayView() {
 
 export function InboxView() {
   const view = useMemo<View>(() => ({ kind: "inbox" }), []);
+  const tr = useT();
+  const t = tr.views;
+  const count = (n: number | null) => (n === null ? "" : t.taskCount(n));
   return (
     <ScopeView
-      title="Inbox"
+      title={tr.nav.inbox}
       sub={count}
+      actions={<SortInboxButton />}
       layouts={["list", "board", "matrix"]}
       listView={view}
       hideProjectFilter
@@ -123,15 +126,11 @@ export function InboxView() {
           empty={
             <EmptyState
               mark="¶"
-              title="Inbox is empty."
-              body={
-                <>
-                  Press <Kbd>Q</Kbd> anywhere to capture a task. It waits here until you give it a day or a project.
-                </>
-              }
+              title={t.inboxEmpty}
+              body={<>{t.inboxEmptyBody(<Kbd key="k">Q</Kbd>)}</>}
             />
           }
-          cleared={<EmptyState mark="Fin." title="Inbox zero." body="Everything you captured has a home." />}
+          cleared={<EmptyState mark="Fin." title={t.inboxZero} body={t.inboxZeroBody} />}
           footer={<InlineAdd />}
         />
       )}
@@ -148,11 +147,13 @@ export function UpcomingView() {
   const [weeks, setWeeks] = useState(WEEKS);
   const view = useMemo<View>(() => ({ kind: "upcoming", today, to: addDays(today, weeks * 7) }), [today, weeks]);
   const through = addDays(today, weeks * 7 - 1);
+  const tr = useT();
+  const t = tr.views;
 
   return (
     <ScopeView
-      title="Upcoming"
-      sub={(n) => (n === null ? "" : `Through ${LONG_DATE.format(fromISODate(through))} · ${count(n)}`)}
+      title={tr.nav.upcoming}
+      sub={(n) => (n === null ? "" : t.through(formatDate(through, LONG), t.taskCount(n)))}
       layouts={["list", "calendar", "timeline", "board"]}
       listView={view}
       boardGroupByProject
@@ -161,7 +162,7 @@ export function UpcomingView() {
         const byDay = new Map<string, Task[]>();
         for (const t of tasks) if (t.dueDate! >= today) byDay.set(t.dueDate!, [...(byDay.get(t.dueDate!) ?? []), t]);
         const groups: TaskGroup[] = [
-          { key: "overdue", title: "Overdue", tone: "danger", tasks: overdue },
+          { key: "overdue", title: t.overdue, tone: "danger", tasks: overdue },
           ...[...byDay].map(([date, list]) => {
             const h = dayHeading(date, today);
             return { key: date, title: h.title, sub: h.sub, hideDate: true, tasks: list };
@@ -171,10 +172,10 @@ export function UpcomingView() {
           <TaskList
             view={view}
             groups={groups}
-            empty={<EmptyState mark="→" title={`Nothing scheduled in the next ${weeks} weeks.`} body="Tasks with a date show up here, grouped by day." />}
+            empty={<EmptyState mark="→" title={t.upcomingEmpty(weeks)} body={t.upcomingEmptyBody} />}
             footer={
               <Button variant="ghost" className="self-start" onClick={() => setWeeks((w) => w + WEEKS)}>
-                Show the following {WEEKS} weeks
+                {t.showFollowing(WEEKS)}
               </Button>
             }
           />
@@ -190,9 +191,11 @@ export function ProjectView({ id }: { id: string }) {
   const view = useMemo<View>(() => ({ kind: "project", id }), [id]);
   const projects = useProjects();
   const project = projects.data?.find((p) => p.id === id);
+  const t = useT().views;
+  const count = (n: number | null) => (n === null ? "" : t.taskCount(n));
 
   if (projects.isSuccess && !project) {
-    return <EmptyState mark="?" title="That project doesn’t exist." body="It may have been deleted. Your other projects are in the sidebar." />;
+    return <EmptyState mark="?" title={t.projectMissing} body={t.projectMissingBody} />;
   }
 
   return (
@@ -223,16 +226,19 @@ export function ProjectView({ id }: { id: string }) {
           empty={
             <EmptyState
               mark="§"
-              title={`No open tasks in ${project?.name ?? "this project"}.`}
+              title={t.projectEmpty(project?.name)}
               body={
                 <>
-                  Add one below, or type <span className="font-mono text-xs">#{project?.name.toLowerCase().replace(/\s+/g, "-")}</span> in quick
-                  add from anywhere.
+                  {t.projectEmptyBody(
+                    <span key="tag" className="font-mono text-xs">
+                      #{project?.name.toLowerCase().replace(/\s+/g, "-")}
+                    </span>,
+                  )}
                 </>
               }
             />
           }
-          cleared={<EmptyState mark="Fin." title="All done here." body={`Nothing left open in ${project?.name}.`} />}
+          cleared={<EmptyState mark="Fin." title={t.projectDone} body={t.projectDoneBody(project?.name)} />}
           footer={project && (project.role === "owner" || project.role === "editor") ? <InlineAdd projectId={id} /> : undefined}
         />
       )}
@@ -245,30 +251,32 @@ function ProjectMenu({ id, name, color, count }: { id: string; name: string; col
   const [deleting, setDeleting] = useState(false);
   const actions = useProjectActions();
   const router = useRouter();
+  const tr = useT();
+  const t = tr.views;
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="Project actions">
+          <Button variant="ghost" size="icon-sm" aria-label={t.projectActions}>
             <Icon icon={MoreHorizontal} />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem icon={<Icon icon={Pencil} />} onSelect={() => setEditing(true)}>
-            Edit project…
+            {t.editProject}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem tone="danger" icon={<Icon icon={Trash2} />} onSelect={() => setDeleting(true)}>
-            Delete project…
+            {t.deleteProject}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
       <Dialog open={editing} onOpenChange={setEditing}>
-        <DialogContent title="Edit project">
+        <DialogContent title={t.editProjectTitle}>
           <ProjectForm
             initial={{ name, color: color as "ink" }}
-            submitLabel="Save"
+            submitLabel={tr.common.save}
             onSubmit={(v) => {
               setEditing(false);
               void actions.update(id, v);
@@ -279,12 +287,12 @@ function ProjectMenu({ id, name, color, count }: { id: string; name: string; col
 
       <Dialog open={deleting} onOpenChange={setDeleting}>
         <DialogContent
-          title={`Delete “${name}”?`}
-          description={`${count ? `Its ${plural(count, "open task")} go with it. ` : ""}This can’t be undone.`}
+          title={t.deleteProjectTitle(name)}
+          description={t.deleteProjectBody(count)}
         >
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="ghost">Keep project</Button>
+              <Button variant="ghost">{t.keepProject}</Button>
             </DialogClose>
             <Button
               variant="danger"
@@ -294,7 +302,7 @@ function ProjectMenu({ id, name, color, count }: { id: string; name: string; col
                 await actions.remove(id);
               }}
             >
-              Delete forever
+              {t.deleteForever}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -310,9 +318,10 @@ export function FilterView({ id }: { id: string }) {
   const projects = useProjects().data ?? [];
   const saved = filters.data?.find((f) => f.id === id);
   const view = useMemo<View>(() => ({ kind: "all" }), []);
+  const t = useT().views;
+  const count = (n: number | null) => (n === null ? "" : t.taskCount(n));
 
-  if (filters.isSuccess && !saved)
-    return <EmptyState mark="?" title="That filter doesn’t exist." body="It may have been deleted. Your other filters are in the sidebar." />;
+  if (filters.isSuccess && !saved) return <EmptyState mark="?" title={t.filterMissing} body={t.filterMissingBody} />;
   if (!saved) return null;
 
   return (
@@ -329,7 +338,7 @@ export function FilterView({ id }: { id: string }) {
         <TaskList
           view={view}
           groups={[{ key: "all", tasks }]}
-          empty={<EmptyState mark="∅" title="Nothing matches right now." body="Tasks appear here as soon as they fit the filter." />}
+          empty={<EmptyState mark="∅" title={t.filterEmpty} body={t.filterEmptyBody} />}
         />
       )}
     />
@@ -341,17 +350,19 @@ function FilterMenu({ id, name, query }: { id: string; name: string; query: stri
   const [value, setValue] = useState(name);
   const { create, update, remove } = useFilterActions();
   const router = useRouter();
+  const tr = useT();
+  const t = tr.views;
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="Filter actions">
+          <Button variant="ghost" size="icon-sm" aria-label={t.filterActions}>
             <Icon icon={MoreHorizontal} />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem icon={<Icon icon={Pencil} />} onSelect={() => setRenaming(true)}>
-            Rename…
+            {t.renameFilter}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -360,18 +371,18 @@ function FilterMenu({ id, name, query }: { id: string; name: string; query: stri
             onSelect={async () => {
               router.push("/today");
               if (await remove(id))
-                toastWithUndo(`Deleted the “${name}” filter.`, async () => {
+                toastWithUndo(t.deletedFilter(name), async () => {
                   const restored = await create({ id: crypto.randomUUID(), name, query });
                   if (restored) router.push(`/filter/${restored.id}`);
                 });
             }}
           >
-            Delete filter
+            {t.deleteFilter}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <Dialog open={renaming} onOpenChange={setRenaming}>
-        <DialogContent title="Rename filter">
+        <DialogContent title={t.renameFilterTitle}>
           <form
             className="flex flex-col gap-4"
             onSubmit={(e) => {
@@ -381,9 +392,9 @@ function FilterMenu({ id, name, query }: { id: string; name: string; query: stri
               void update(id, { name: value.trim() });
             }}
           >
-            <Field label="Name">{(p) => <Input {...p} autoFocus value={value} onChange={(e) => setValue(e.target.value)} />}</Field>
+            <Field label={t.name}>{(p) => <Input {...p} autoFocus value={value} onChange={(e) => setValue(e.target.value)} />}</Field>
             <Button type="submit" variant="primary" className="self-start">
-              Save
+              {tr.common.save}
             </Button>
           </form>
         </DialogContent>

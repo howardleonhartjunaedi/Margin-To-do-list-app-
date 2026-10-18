@@ -1,0 +1,34 @@
+import type { Messages } from "../catalogs";
+
+const auth: Messages["auth"] = {
+  signInTitle: "Masuk",
+  signUpTitle: "Buat akun",
+  startList: "Mulai daftar yang bersih.",
+  welcomeBack: "Selamat datang kembali.",
+  syncDevices: "Dengan akun, tugas Anda tersinkron di semua perangkat.",
+  sessionEnded: "Sesi Anda berakhir. Masuk untuk melanjutkan dari terakhir kali.",
+  seeToday: "Masuk untuk melihat agenda hari ini.",
+  name: "Nama",
+  namePlaceholder: "Sari Rahma",
+  email: "Email",
+  password: "Kata sandi",
+  passwordHint: "Minimal 8 karakter.",
+  creating: "Membuat akun Anda…",
+  signingIn: "Sedang masuk…",
+  createAccount: "Buat akun",
+  signIn: "Masuk",
+  haveAccount: "Sudah punya akun? ",
+  newHere: "Baru di sini? ",
+  createAnAccount: "Buat akun",
+  errors: {
+    mismatch: "Email dan kata sandi tidak cocok. Periksa salah ketik lalu coba lagi.",
+    exists: "Sudah ada akun dengan email itu. Masuk saja?",
+    short: "Gunakan minimal 8 karakter untuk kata sandi.",
+    email: "Alamat email itu sepertinya tidak benar.",
+    rate: "Terlalu banyak percobaan. Tunggu sebentar, lalu coba lagi.",
+    signIn: "Tidak bisa masuk. Coba lagi.",
+    signUp: "Akun tidak bisa dibuat. Coba lagi.",
+  },
+  aside: ["Catat.", "Beri tanggal.", "Kerjakan", ", lalu lupakan."],
+};
+export default auth;

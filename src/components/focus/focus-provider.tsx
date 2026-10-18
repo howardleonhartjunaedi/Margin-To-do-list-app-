@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { useTaskActions } from "@/lib/data";
 import * as F from "@/lib/focus";
 import type { Task } from "@/lib/types";
+import { m } from "@/i18n/catalogs";
 
 /*
  * The focus timer lives on the client: persisted to localStorage so a reload or a second
@@ -151,23 +152,24 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     const wasFocus = timer.phase === "focus";
     const away = now - (timer.startedAt + timer.pausedMs + timer.durationMs) > 60_000;
     if (prefs.sound && !away) chime();
-    const title = wasFocus ? "Focus session done." : "Break’s over.";
-    const body = wasFocus ? "Take a breath — a break is up next." : "Ready for the next round when you are.";
+    const t = m().focus;
+    const title = wasFocus ? t.sessionDone : t.breakOver;
+    const body = wasFocus ? t.takeBreath : t.readyNext;
     systemNotify(title, body);
     if (wasFocus && timer.taskId) {
       const taskId = timer.taskId;
-      const taskTitle = timer.taskTitle ?? "this task";
-      toast(away ? "Your focus session ended while you were away." : title, {
-        description: `On “${taskTitle}”.`,
+      const taskTitle = timer.taskTitle ?? t.thisTask;
+      toast(away ? t.endedAway : title, {
+        description: t.on(taskTitle),
         action: {
-          label: "Mark done",
+          label: t.markDone,
           onClick: async () => {
             const { task } = await api.task(taskId);
             void actionsRef.current.complete(task);
           },
         },
       });
-    } else toast(away ? "Your timer ended while you were away." : title);
+    } else toast(away ? t.timerEndedAway : title);
 
     const following = F.next(timer, now, prefs);
     // Breaks can start themselves; focus waits for you.
@@ -179,8 +181,10 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!timer) return;
     // Re-read the title each tick: Next replaces it on navigation.
-    const strip = (t: string) => t.replace(/^[\d:]+ · (Focus|Break)( \(paused\))? · /, "");
-    const label = `${timer.phase === "focus" ? "Focus" : "Break"}${timer.pausedAt ? " (paused)" : ""}`;
+    // Any language: "12:34 · <label> · " is ours.
+    const strip = (s: string) => s.replace(/^[\d:]+ · [^·]+ · /, "");
+    const t = m().focus;
+    const label = `${timer.phase === "focus" ? t.phases.focus : t.break}${timer.pausedAt ? t.pausedSuffix : ""}`;
     document.title = `${F.clock(F.remaining(timer, now))} · ${label} · ${strip(document.title)}`;
     return () => {
       document.title = strip(document.title);

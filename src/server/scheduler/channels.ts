@@ -7,6 +7,7 @@ import type { Db } from "../db/types";
 import { pushSubscription } from "../db/schema";
 import type { Channels, OutboundMessage } from "./core";
 import { publish } from "../events";
+import { m } from "@/i18n/catalogs";
 
 /*
  * Real delivery channels.
@@ -39,13 +40,14 @@ function escapeHtml(s: string) {
 
 function emailHtml(msg: OutboundMessage) {
   const body = escapeHtml(msg.body).replace(/\n/g, "<br>");
-  return `<!doctype html><html><body style="margin:0;background:#f6f2ea;padding:32px 16px;font-family:Georgia,serif;color:#1d1b18">
+  const words = m(msg.locale ?? "en").email;
+  return `<!doctype html><html lang="${msg.locale ?? "en"}"><body style="margin:0;background:#f6f2ea;padding:32px 16px;font-family:Georgia,serif;color:#1d1b18">
 <div style="max-width:480px;margin:0 auto">
 <p style="font-size:13px;color:#6b6458;margin:0 0 16px">Margin</p>
 <h1 style="font-size:24px;font-weight:normal;margin:0 0 8px">${escapeHtml(msg.title)}</h1>
 <p style="font-family:Arial,sans-serif;font-size:14px;line-height:22px;color:#48433b;margin:0 0 24px">${body}</p>
-<a href="${escapeHtml(msg.url)}" style="font-family:Arial,sans-serif;font-size:14px;color:#fff8f2;background:#467235;padding:10px 16px;border-radius:8px;text-decoration:none">Open in Margin</a>
-<p style="font-family:Arial,sans-serif;font-size:12px;color:#6b6458;margin:32px 0 0">${escapeHtml(msg.footer ?? "You get these because email reminders are on. Turn them off in Settings.")}</p>
+<a href="${escapeHtml(msg.url)}" style="font-family:Arial,sans-serif;font-size:14px;color:#fff8f2;background:#467235;padding:10px 16px;border-radius:8px;text-decoration:none">${escapeHtml(words.open)}</a>
+<p style="font-family:Arial,sans-serif;font-size:12px;color:#6b6458;margin:32px 0 0">${escapeHtml(msg.footer ?? words.footer)}</p>
 </div></body></html>`;
 }
 
@@ -90,7 +92,7 @@ export function realChannels(db: Db): Channels {
         html: emailHtml(msg),
       });
       if (!process.env.SMTP_URL && "message" in info) {
-        const dir = path.join(process.cwd(), ".data", "outbox");
+        const dir = path.join(/* turbopackIgnore: true */ process.cwd(), ".data", "outbox");
         await mkdir(dir, { recursive: true });
         const file = path.join(dir, `${Date.now()}-${msg.tag}.eml`);
         await writeFile(file, info.message as Buffer);

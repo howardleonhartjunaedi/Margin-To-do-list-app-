@@ -1,4 +1,4 @@
-// Verifies every text/UI color pairing in globals.css meets WCAG AA in both themes.
+// Verifies every text/UI color pairing in globals.css meets WCAG AA in every theme combination.
 // Run: npm run contrast   (exits 1 on any failure)
 import { readFileSync } from "node:fs";
 
@@ -40,19 +40,45 @@ const checks = [
   ["focus", ["bg", "surface", "raised"], 3],
 ];
 
+// Each combination the app can show: theme × contrast × accent, built the way the cascade builds it.
+const themes = [
+  ["light", [":root"]],
+  ["dark", [":root", '[data-theme="dark"]']],
+];
+const contrasts = [
+  ["standard", { light: [], dark: [] }],
+  ["high", { light: ['[data-theme="light"][data-contrast="high"]'], dark: ['[data-theme="dark"][data-contrast="high"]'] }],
+];
+const accents = [
+  ["fern", { light: [], dark: [] }],
+  ...["vermilion", "plum", "ink"].map((a) => [a, { light: [`[data-accent="${a}"]`], dark: [`[data-accent="${a}"]`, `[data-theme="dark"][data-accent="${a}"]`] }]),
+];
+
 let failed = 0;
-for (const [name, sel] of [["light", ":root"], ["dark", '[data-theme="dark"]']]) {
-  const t = block(sel);
-  console.log(`\n${name}`);
-  for (const [fg, bgs, min] of checks) {
-    for (const bg of bgs) {
-      const r = ratio(t[fg], t[bg]);
-      const ok = r >= min;
-      if (!ok) failed++;
-      if (!ok || process.argv.includes("--all"))
-        console.log(`  ${ok ? "ok  " : "FAIL"} ${fg.padEnd(12)} on ${bg.padEnd(13)} ${r.toFixed(2)} (min ${min})`);
+let combos = 0;
+for (const [theme, base] of themes)
+  for (const [contrast, cSel] of contrasts)
+    for (const [accent, aSel] of accents) {
+      const t = Object.assign({}, ...[...base, ...aSel[theme], ...cSel[theme]].map(block));
+      const name = `${theme} · ${contrast} · ${accent}`;
+      combos++;
+      let header = false;
+      for (const [fg, bgs, min] of checks) {
+        // High contrast promises AAA (7:1) for body text.
+        const need = contrast === "high" && ["ink", "ink-2", "ink-3"].includes(fg) && grounds.includes(bgs[0]) ? 7 : min;
+        for (const bg of bgs) {
+          const r = ratio(t[fg], t[bg]);
+          const ok = r >= need;
+          if (!ok) failed++;
+          if (!ok || process.argv.includes("--all")) {
+            if (!header) console.log(`
+${name}`), (header = true);
+            console.log(`  ${ok ? "ok  " : "FAIL"} ${fg.padEnd(12)} on ${bg.padEnd(13)} ${r.toFixed(2)} (min ${need})`);
+          }
+        }
+      }
     }
-  }
-}
-console.log(failed ? `\n${failed} pairing(s) below AA` : "\nAll pairings pass WCAG AA in both themes.");
+console.log(failed ? `
+${failed} pairing(s) below target` : `
+All pairings pass in all ${combos} theme combinations (AA; AAA body text in high contrast).`);
 process.exit(failed ? 1 : 0);

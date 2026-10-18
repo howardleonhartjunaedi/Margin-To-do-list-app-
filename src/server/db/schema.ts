@@ -203,6 +203,10 @@ export const userSettings = pgTable("user_settings", {
   emailEnabled: boolean().notNull().default(false),
   digestEnabled: boolean().notNull().default(false),
   digestTime: text().notNull().default("08:00"),
+  /** Interface language (a code from src/i18n/locales.ts). null = follow the browser. */
+  locale: text(),
+  /** The user's consent to send task text to the AI model for suggestions. Off until they turn it on. */
+  aiEnabled: boolean().notNull().default(false),
   lastDigestOn: date({ mode: "string" }),
   /** Secret for the private iCal feed URL. null until the user turns the feed on. */
   icalToken: text().unique(),

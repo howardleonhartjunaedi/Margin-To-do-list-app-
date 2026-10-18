@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import type { Messages } from "@/i18n/catalogs";
+import { LanguageSwitch } from "./language-switch";
+
+type T = Messages["landing"];
 
 function Wordmark() {
   return (
@@ -9,28 +13,28 @@ function Wordmark() {
   );
 }
 
-export function LandingHeader() {
+export function LandingHeader({ t }: { t: T }) {
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/95">
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-8">
         <Wordmark />
-        <nav aria-label="Sections" className="hidden items-center gap-6 text-sm text-ink-2 md:flex">
+        <nav aria-label={t.sections} className="hidden items-center gap-6 text-sm text-ink-2 md:flex">
           <a href="#features" className="hover:text-ink">
-            Features
+            {t.features}
           </a>
           <a href="#try" className="hover:text-ink">
-            Try it
+            {t.tryIt}
           </a>
           <a href="#faq" className="hover:text-ink">
-            FAQ
+            {t.faq}
           </a>
         </nav>
         <div className="ml-auto flex items-center gap-2">
           <Button asChild variant="ghost" size="sm">
-            <Link href="/sign-in">Sign in</Link>
+            <Link href="/sign-in">{t.signIn}</Link>
           </Button>
           <Button asChild variant="primary" size="sm" className="max-[379px]:hidden">
-            <Link href="/sign-up">Create account</Link>
+            <Link href="/sign-up">{t.createAccount}</Link>
           </Button>
         </div>
       </div>
@@ -38,36 +42,39 @@ export function LandingHeader() {
   );
 }
 
-export function LandingFooter() {
+export function LandingFooter({ t }: { t: T }) {
   return (
     <footer className="border-t border-line">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-8 md:grid-cols-[2fr_1fr_1fr]">
         <div>
           <Wordmark />
-          <p className="mt-3 max-w-[36ch] text-sm text-ink-2">A calm place to write things down, and be reminded when it matters.</p>
+          <p className="mt-3 max-w-[36ch] text-sm text-ink-2">{t.tagline}</p>
+          <div className="mt-6">
+            <LanguageSwitch label={t.language} />
+          </div>
         </div>
-        <nav aria-label="Product" className="flex flex-col gap-2 text-sm">
-          <p className="mb-1 font-mono text-2xs tracking-wider text-ink-3 uppercase">Product</p>
+        <nav aria-label={t.product} className="flex flex-col gap-2 text-sm">
+          <p className="mb-1 font-mono text-2xs tracking-wider text-ink-3 uppercase">{t.product}</p>
           <a href="#features" className="text-ink-2 hover:text-ink">
-            Features
+            {t.features}
           </a>
           <a href="#try" className="text-ink-2 hover:text-ink">
-            Try it
+            {t.tryIt}
           </a>
           <Link href="/sign-up" className="text-ink-2 hover:text-ink">
-            Create account
+            {t.createAccount}
           </Link>
         </nav>
-        <nav aria-label="Resources" className="flex flex-col gap-2 text-sm">
-          <p className="mb-1 font-mono text-2xs tracking-wider text-ink-3 uppercase">Resources</p>
+        <nav aria-label={t.resources} className="flex flex-col gap-2 text-sm">
+          <p className="mb-1 font-mono text-2xs tracking-wider text-ink-3 uppercase">{t.resources}</p>
           <Link href="/developers" className="text-ink-2 hover:text-ink">
-            API &amp; webhooks
+            {t.apiWebhooks}
           </Link>
           <Link href="/styleguide" className="text-ink-2 hover:text-ink">
-            Style guide
+            {t.styleGuide}
           </Link>
           <Link href="/sign-in" className="text-ink-2 hover:text-ink">
-            Sign in
+            {t.signIn}
           </Link>
         </nav>
       </div>

@@ -10,6 +10,8 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
         defaultOptions: {
           queries: {
             staleTime: 30_000,
+            // Always try the request: offline, the service worker answers with the last copy it kept.
+            networkMode: "offlineFirst",
             refetchOnWindowFocus: true,
             retry: (count, err) => count < 2 && !(err as { status?: number }).status?.toString().startsWith("4"),
           },

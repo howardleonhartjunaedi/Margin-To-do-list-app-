@@ -15,7 +15,9 @@ import { addReminder, getSettings, recomputeTaskReminders } from "./reminders";
 
 export { ClientError };
 
-const MAX_LIST = 5000;
+// A safety net, not a page size: lists are virtualized on the client and gzipped on the wire,
+// so even 10,000+ open tasks in one place arrive whole.
+const MAX_LIST = 25_000;
 
 // Correlated subqueries must name the outer row explicitly: drizzle renders ${task.id}
 // as a bare "id" in a select list, which would bind to the inner table instead.

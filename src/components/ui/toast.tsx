@@ -2,6 +2,7 @@
 
 import { Toaster as Sonner, toast as sonnerToast } from "sonner";
 import { usePreferences } from "../providers/preferences";
+import { m } from "@/i18n/catalogs";
 
 /** Toasts stack bottom-left, out of the way of the primary action (bottom-right on mobile is the add button). */
 export function Toaster() {
@@ -33,7 +34,7 @@ export function Toaster() {
 
 /** Every destructive or bulk action gets an Undo instead of a confirmation dialog. */
 export function toastWithUndo(message: string, onUndo: () => void) {
-  sonnerToast(message, { action: { label: "Undo", onClick: onUndo }, duration: 6000 });
+  sonnerToast(message, { action: { label: m().common.undo, onClick: onUndo }, duration: 6000 });
 }
 
 export const toast = sonnerToast;

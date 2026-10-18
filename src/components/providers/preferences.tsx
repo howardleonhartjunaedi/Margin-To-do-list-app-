@@ -1,20 +1,25 @@
 "use client";
 
-import { MotionConfig } from "motion/react";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { MotionLevel } from "@/design/motion";
 
 export type ThemePref = "system" | "light" | "dark";
+/** "system" follows the OS "increase contrast" setting. */
+export type ContrastPref = "system" | "standard" | "high";
+export type AccentPref = "fern" | "vermilion" | "plum" | "ink";
+export const ACCENTS: AccentPref[] = ["fern", "vermilion", "plum", "ink"];
 
 export interface Preferences {
   theme: ThemePref;
+  contrast: ContrastPref;
+  accent: AccentPref;
   /** What the user picked. The effective level is also clamped by the OS setting. */
   motion: MotionLevel;
   cursor: boolean;
   celebrate: boolean;
 }
 
-const DEFAULTS: Preferences = { theme: "system", motion: "full", cursor: true, celebrate: true };
+const DEFAULTS: Preferences = { theme: "system", contrast: "system", accent: "fern", motion: "full", cursor: true, celebrate: true };
 const KEY = "margin:prefs";
 
 interface Ctx {
@@ -22,6 +27,7 @@ interface Ctx {
   set: <K extends keyof Preferences>(key: K, value: Preferences[K]) => void;
   /** Resolved values the UI should actually use. */
   resolvedTheme: "light" | "dark";
+  highContrast: boolean;
   motion: MotionLevel;
   osReducedMotion: boolean;
 }
@@ -59,15 +65,20 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
 
   const osDark = useMedia("(prefers-color-scheme: dark)");
   const osReducedMotion = useMedia("(prefers-reduced-motion: reduce)");
+  const osMoreContrast = useMedia("(prefers-contrast: more)");
 
   const resolvedTheme = prefs.theme === "system" ? (osDark ? "dark" : "light") : prefs.theme;
   const motion = effectiveMotion(prefs.motion, osReducedMotion);
+  const highContrast = prefs.contrast === "high" || (prefs.contrast === "system" && osMoreContrast);
 
   useEffect(() => {
     const root = document.documentElement;
     root.dataset.theme = resolvedTheme;
     root.dataset.motion = motion;
-  }, [resolvedTheme, motion]);
+    root.dataset.accent = prefs.accent;
+    if (highContrast) root.dataset.contrast = "high";
+    else delete root.dataset.contrast;
+  }, [resolvedTheme, motion, prefs.accent, highContrast]);
 
   const set = useCallback<Ctx["set"]>((key, value) => {
     setPrefs((p) => {
@@ -80,20 +91,13 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const value = useMemo(
-    () => ({ prefs, set, resolvedTheme, motion, osReducedMotion }),
-    [prefs, set, resolvedTheme, motion, osReducedMotion],
+    () => ({ prefs, set, resolvedTheme, highContrast, motion, osReducedMotion }),
+    [prefs, set, resolvedTheme, highContrast, motion, osReducedMotion],
   ) satisfies Ctx;
 
   return (
-    <PreferencesContext.Provider value={value}>
-      {/* "reduced": Motion keeps opacity fades but drops transform/layout animation. */}
-      <MotionConfig
-        reducedMotion={motion === "full" ? "never" : "always"}
-        transition={motion === "off" ? { duration: 0 } : undefined}
-      >
-        {children}
-      </MotionConfig>
-    </PreferencesContext.Provider>
+    // Motion’s own config lives in UiRoot, mounted only where things animate.
+    <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>
   );
 }
 
@@ -109,4 +113,4 @@ export function usePreferences() {
  */
 export const preferencesBootScript = `(()=>{try{var p=JSON.parse(localStorage.getItem(${JSON.stringify(
   KEY,
-)})||"{}");var m=function(q){return matchMedia(q).matches};var t=p.theme||"system";var d=document.documentElement;d.dataset.theme=t==="system"?(m("(prefers-color-scheme: dark)")?"dark":"light"):t;var mo=p.motion||"full";d.dataset.motion=mo==="off"?"off":(m("(prefers-reduced-motion: reduce)")?"reduced":mo)}catch(e){}})()`;
+)})||"{}");var m=function(q){return matchMedia(q).matches};var t=p.theme||"system";var d=document.documentElement;d.dataset.theme=t==="system"?(m("(prefers-color-scheme: dark)")?"dark":"light"):t;var mo=p.motion||"full";d.dataset.motion=mo==="off"?"off":(m("(prefers-reduced-motion: reduce)")?"reduced":mo);d.dataset.accent=p.accent||"fern";var c=p.contrast||"system";if(c==="high"||(c==="system"&&m("(prefers-contrast: more)")))d.dataset.contrast="high"}catch(e){}})()`;

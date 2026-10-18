@@ -30,6 +30,8 @@ import type { Priority, Project, Task } from "@/lib/types";
 import type { UpdateTaskInput } from "@/lib/validation";
 import { useUrlParam } from "@/lib/view-transition";
 import { BoardCard } from "./board-card";
+import { useT } from "@/i18n/client";
+import { m } from "@/i18n/catalogs";
 
 export type GroupBy = "priority" | "project";
 
@@ -43,20 +45,19 @@ interface Column {
   defaults: { priority?: Priority; projectId?: string | null };
 }
 
-const PRIORITY_NAMES = ["Urgent", "High", "Normal", "Someday"];
-
 function columnsFor(groupBy: GroupBy, projects: Project[]): Column[] {
+  const t = m();
   if (groupBy === "priority")
     return ([1, 2, 3, 4] as Priority[]).map((p) => ({
       id: `p${p}`,
-      title: `P${p} · ${PRIORITY_NAMES[p - 1]}`,
+      title: `P${p} · ${t.item.priorityNames[p - 1]}`,
       dot: ["bg-p1", "bg-p2", "bg-p3", "bg-p4"][p - 1],
       has: (t) => t.priority === p,
       patch: { priority: p },
       defaults: { priority: p },
     }));
   return [
-    { id: "inbox", title: "Inbox", has: (t) => !t.projectId, patch: { projectId: null }, defaults: { projectId: null } },
+    { id: "inbox", title: t.nav.inbox, has: (t) => !t.projectId, patch: { projectId: null }, defaults: { projectId: null } },
     ...projects.map((p) => ({
       id: p.id,
       title: p.name,
@@ -84,11 +85,21 @@ export function Board({ tasks, allowProjectGroup, fixed }: { tasks: Task[]; allo
   const columns = useMemo(() => columnsFor(groupBy, projects), [groupBy, projects]);
   const byId = useMemo(() => new Map(tasks.map((t) => [t.id, t])), [tasks]);
   const projectById = useMemo(() => new Map(projects.map((p) => [p.id, p])), [projects]);
+  const t = useT().layouts;
 
   const derive = () =>
-    Object.fromEntries(columns.map((c) => [c.id, tasks.filter(c.has).sort(bySortKey).map((t) => t.id)])) as Record<string, string[]>;
+    Object.fromEntries(
+      columns.map((c) => [
+        c.id,
+        tasks
+          .filter(c.has)
+          .sort(bySortKey)
+          .map((t) => t.id),
+      ]),
+    ) as Record<string, string[]>;
   const [items, setItems] = useState(derive);
   const [active, setActive] = useState<string | null>(null);
+  const [shown, setShown] = useState<Record<string, number>>({});
   const dragging = useRef(false);
   const origin = useRef<string | null>(null);
   useEffect(() => {
@@ -163,7 +174,7 @@ export function Board({ tasks, allowProjectGroup, fixed }: { tasks: Task[]; allo
     const undo: UpdateTaskInput = moved
       ? { ...(groupBy === "priority" ? { priority: task.priority } : { projectId: task.projectId }), sortKey: task.sortKey }
       : { sortKey: task.sortKey };
-    void actions.update(task, patch, moved ? { message: `Moved to ${column.title.split(" · ")[0]}.`, undo } : {});
+    void actions.update(task, patch, moved ? { message: m().tasks.movedTo(column.title.split(" · ")[0]), undo } : {});
   };
 
   const activeTask = active ? byId.get(active) : undefined;
@@ -172,15 +183,15 @@ export function Board({ tasks, allowProjectGroup, fixed }: { tasks: Task[]; allo
     <div>
       {allowProjectGroup && (
         <div className="mb-4 flex items-center gap-3 text-xs text-ink-2">
-          Group by
+          {t.groupBy}
           <Segmented<GroupBy>
-            label="Group board by"
+            label={t.groupBoardBy}
             size="sm"
             value={groupBy}
             onValueChange={(g) => setGroup(g, { transition: true })}
             options={[
-              { value: "priority", label: "Priority" },
-              { value: "project", label: "Project" },
+              { value: "priority", label: t.priority },
+              { value: "project", label: t.project },
             ]}
           />
         </div>
@@ -198,41 +209,42 @@ export function Board({ tasks, allowProjectGroup, fixed }: { tasks: Task[]; allo
         }}
         accessibility={{
           screenReaderInstructions: {
-            draggable: "To move a task, press Space. Use the arrow keys to move it between columns, Space to drop, or Escape to cancel.",
+            draggable: t.boardDragHelp,
           },
         }}
       >
-        <div
-          className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 sm:-mx-8 sm:px-8"
-          data-lenis-prevent
-          role="region"
-          aria-label="Board"
-        >
-          {columns.map((c) => (
-            <BoardColumn
-              key={c.id}
-              column={c}
-              ids={items[c.id] ?? []}
-              onAdd={() => openQuickAdd({ ...fixed, ...c.defaults, dueDate: null })}
-            >
-              {(items[c.id] ?? []).map((id) => {
-                const t = byId.get(id);
-                if (!t) return null;
-                return (
-                  <SortableCard key={id} id={id} onOpen={() => openTask(id)}>
-                    <BoardCard
-                      task={t}
-                      today={today}
-                      showPriority={groupBy !== "priority"}
-                      project={groupBy === "project" || !t.projectId || fixed?.projectId ? undefined : projectById.get(t.projectId)}
-                      onOpen={() => openTask(id)}
-                      onComplete={() => void actions.complete(t)}
-                    />
-                  </SortableCard>
-                );
-              })}
-            </BoardColumn>
-          ))}
+        <div className="-mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-4 sm:-mx-8 sm:px-8" data-lenis-prevent role="region" aria-label={t.board}>
+          {columns.map((c) => {
+            const all = items[c.id] ?? [];
+            const visible = all.slice(0, shown[c.id] ?? PAGE);
+            return (
+              <BoardColumn
+                key={c.id}
+                column={c}
+                ids={visible}
+                total={all.length}
+                onAdd={() => openQuickAdd({ ...fixed, ...c.defaults, dueDate: null })}
+                onMore={() => setShown((m) => ({ ...m, [c.id]: (m[c.id] ?? PAGE) + PAGE }))}
+              >
+                {visible.map((id) => {
+                  const t = byId.get(id);
+                  if (!t) return null;
+                  return (
+                    <SortableCard key={id} id={id} onOpen={() => openTask(id)}>
+                      <BoardCard
+                        task={t}
+                        today={today}
+                        showPriority={groupBy !== "priority"}
+                        project={groupBy === "project" || !t.projectId || fixed?.projectId ? undefined : projectById.get(t.projectId)}
+                        onOpen={() => openTask(id)}
+                        onComplete={() => void actions.complete(t)}
+                      />
+                    </SortableCard>
+                  );
+                })}
+              </BoardColumn>
+            );
+          })}
         </div>
         <DragOverlay dropAnimation={{ duration: 200, easing: "cubic-bezier(0.22, 1, 0.36, 1)" }}>
           {activeTask && (
@@ -250,15 +262,33 @@ export function Board({ tasks, allowProjectGroup, fixed }: { tasks: Task[]; allo
   );
 }
 
-function BoardColumn({ column, ids, onAdd, children }: { column: Column; ids: string[]; onAdd: () => void; children: React.ReactNode }) {
+/** Cards rendered per column at first; long columns grow on request instead of all at once. */
+const PAGE = 20;
+
+function BoardColumn({
+  column,
+  ids,
+  total,
+  onAdd,
+  onMore,
+  children,
+}: {
+  column: Column;
+  ids: string[];
+  total: number;
+  onAdd: () => void;
+  onMore: () => void;
+  children: React.ReactNode;
+}) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
+  const tr = useT();
   return (
     <section aria-label={column.title} className="flex w-[min(288px,82vw)] shrink-0 snap-start flex-col">
       <header className="mb-2 flex items-center gap-2 px-1">
         {column.dot && <span className={cn("size-2 rounded-full", column.dot)} />}
-        <h3 className="truncate text-sm font-medium text-ink">{column.title}</h3>
-        <span className="font-mono text-2xs text-ink-3">{ids.length}</span>
-        <Button variant="ghost" size="icon-sm" className="ml-auto" aria-label={`Add task to ${column.title}`} onClick={onAdd}>
+        <h2 className="truncate text-sm font-medium text-ink">{column.title}</h2>
+        <span className="font-mono text-2xs text-ink-3">{total}</span>
+        <Button variant="ghost" size="icon-sm" className="ml-auto" aria-label={tr.layouts.addTaskTo(column.title)} onClick={onAdd}>
           <Icon icon={Plus} size="xs" />
         </Button>
       </header>
@@ -271,7 +301,14 @@ function BoardColumn({ column, ids, onAdd, children }: { column: Column; ids: st
           )}
         >
           {children}
-          {ids.length === 0 && <li className="px-2 py-6 text-center text-xs text-ink-3">Drop a task here</li>}
+          {ids.length === 0 && <li className="px-2 py-6 text-center text-xs text-ink-3">{tr.layouts.dropHere}</li>}
+          {total > ids.length && (
+            <li>
+              <Button variant="ghost" size="sm" className="w-full text-ink-2" onClick={onMore}>
+                {tr.common.showMore(Math.min(PAGE, total - ids.length), total - ids.length)}
+              </Button>
+            </li>
+          )}
         </ul>
       </SortableContext>
     </section>
@@ -282,21 +319,24 @@ function SortableCard({ id, onOpen, children }: { id: string; onOpen: () => void
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id,
     transition: { duration: 200, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
+    // A group, not a button: the card holds its own controls (complete, open).
+    attributes: { role: "group", roleDescription: "draggable task" },
   });
   return (
-    <li
-      ref={setNodeRef}
-      style={{ transform: CSS.Translate.toString(transform), transition }}
-      {...attributes}
-      {...listeners}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" && e.target === e.currentTarget) return onOpen();
-        listeners?.onKeyDown?.(e);
-      }}
-      data-cursor="drag"
-      className={cn("touch-manipulation rounded-md outline-offset-2", isDragging && "opacity-35")}
-    >
-      {children}
+    // The list item stays a list item; the draggable (role="button" from dnd-kit) is inside it.
+    <li ref={setNodeRef} style={{ transform: CSS.Translate.toString(transform), transition }} className={cn(isDragging && "opacity-35")}>
+      <div
+        {...attributes}
+        {...listeners}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && e.target === e.currentTarget) return onOpen();
+          listeners?.onKeyDown?.(e);
+        }}
+        data-cursor="drag"
+        className="touch-manipulation rounded-md outline-offset-2"
+      >
+        {children}
+      </div>
     </li>
   );
 }

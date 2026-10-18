@@ -18,6 +18,7 @@ import { PriorityFlag } from "@/components/ui/priority";
 import { Tooltip } from "@/components/ui/tooltip";
 import { duration, ease } from "@/design/motion";
 import { cn } from "@/lib/cn";
+import { useT } from "@/i18n/client";
 import { formatDue, formatTime } from "@/lib/dates";
 import { minutesLabel } from "@/lib/focus";
 import { getCurrentUserId } from "@/lib/data";
@@ -62,6 +63,7 @@ export const TaskItem = memo(function TaskItem({
   onRescheduleOpenChange,
   dragControls,
 }: TaskItemProps) {
+  const t = useT().item;
   const overdue = !!task.dueDate && task.dueDate < today;
   const showDate = !!task.dueDate && !(hideDate && !overdue);
   const dueText = showDate ? formatDue(task.dueDate!, today, task.dueTime) : task.dueTime ? formatTime(task.dueTime) : null;
@@ -71,7 +73,7 @@ export const TaskItem = memo(function TaskItem({
       {dragControls && (
         <span
           data-cursor="drag"
-          data-cursor-label="Drag"
+          data-cursor-label={t.drag}
           aria-hidden
           onPointerDown={(e) => {
             e.preventDefault();
@@ -88,7 +90,7 @@ export const TaskItem = memo(function TaskItem({
           checked={done}
           priority={task.priority}
           onCheckedChange={() => onToggle(task)}
-          aria-label={`${done ? "Mark not done" : "Complete"}: ${task.title}`}
+          aria-label={`${done ? t.markNotDone : t.complete}: ${task.title}`}
           tabIndex={-1}
         />
       </div>
@@ -121,8 +123,8 @@ export const TaskItem = memo(function TaskItem({
           onPick={(c) => onReschedule(task, c)}
         >
           <span className="max-sm:hidden">
-            <Tooltip content="Reschedule" shortcut={["T"]}>
-              <Button variant="ghost" size="icon-sm" aria-label="Reschedule" tabIndex={-1}>
+            <Tooltip content={t.reschedule} shortcut={["T"]}>
+              <Button variant="ghost" size="icon-sm" aria-label={t.reschedule} tabIndex={-1}>
                 <Icon icon={CalendarClock} />
               </Button>
             </Tooltip>
@@ -130,19 +132,19 @@ export const TaskItem = memo(function TaskItem({
         </ReschedulePopover>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="More actions" tabIndex={-1}>
+            <Button variant="ghost" size="icon-sm" aria-label={t.moreActions} tabIndex={-1}>
               <Icon icon={MoreHorizontal} />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem icon={<Icon icon={PanelRightOpen} />} shortcut="↵" onSelect={() => onOpen(task)}>
-              Open
+              {t.open}
             </DropdownMenuItem>
             <DropdownMenuItem icon={<Icon icon={CalendarClock} />} shortcut="T" onSelect={() => setTimeout(() => onRescheduleOpenChange(true), 0)}>
-              Reschedule…
+              {t.rescheduleMenu}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel>Priority</DropdownMenuLabel>
+            <DropdownMenuLabel>{t.priority}</DropdownMenuLabel>
             {([1, 2, 3, 4] as Priority[]).map((p) => (
               <DropdownMenuItem
                 key={p}
@@ -151,14 +153,14 @@ export const TaskItem = memo(function TaskItem({
                 onSelect={() => onPriority(task, p)}
               >
                 <span className="inline-flex items-center gap-2">
-                  {["Urgent", "High", "Normal", "Someday"][p - 1]}
-                  {task.priority === p && <Icon icon={Check} size="xs" className="text-ink-3" label="current" />}
+                  {t.priorityNames[p - 1]}
+                  {task.priority === p && <Icon icon={Check} size="xs" className="text-ink-3" label={t.current} />}
                 </span>
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem tone="danger" icon={<Icon icon={Trash2} />} shortcut="⌫" onSelect={() => onDelete(task)}>
-              Delete
+              {t.delete}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -180,21 +182,22 @@ function Meta({
   dueText: string | null;
   overdue: boolean;
 }) {
+  const t = useT().item;
   const showProject = view.kind !== "project" && project;
   const items = [
     dueText && (
       <span key="due" className={cn("inline-flex items-center gap-1 font-mono text-2xs", overdue ? "text-danger" : "text-ink-2")}>
         {dueText}
-        {task.recurrence && <Icon icon={Repeat} size="xs" label="Repeats" />}
+        {task.recurrence && <Icon icon={Repeat} size="xs" label={t.repeats} />}
       </span>
     ),
-    !dueText && task.recurrence && <Icon key="rep" icon={Repeat} size="xs" label="Repeats" className="text-ink-3" />,
+    !dueText && task.recurrence && <Icon key="rep" icon={Repeat} size="xs" label={t.repeats} className="text-ink-3" />,
     task.priority < 4 && <PriorityFlag key="pri" priority={task.priority} />,
     task.subtaskCount > 0 && (
       <span key="sub" className="inline-flex items-center gap-1 font-mono text-2xs text-ink-2">
         <Icon icon={ListChecks} size="xs" />
         {task.subtaskDone}/{task.subtaskCount}
-        <span className="sr-only"> subtasks done</span>
+        <span className="sr-only"> {t.subtasksDone}</span>
       </span>
     ),
     task.estimateMinutes && (
@@ -202,12 +205,12 @@ function Meta({
         ~{minutesLabel(task.estimateMinutes)}
       </span>
     ),
-    task.notes && <Icon key="notes" icon={AlignLeft} size="xs" label="Has notes" className="text-ink-3" />,
+    task.notes && <Icon key="notes" icon={AlignLeft} size="xs" label={t.hasNotes} className="text-ink-3" />,
     task.commentCount > 0 && (
       <span key="comments" className="inline-flex items-center gap-1 font-mono text-2xs text-ink-3">
         <Icon icon={MessageSquare} size="xs" />
         {task.commentCount}
-        <span className="sr-only"> comments</span>
+        <span className="sr-only"> {t.comments}</span>
       </span>
     ),
     task.assigneeId && task.projectId && task.assigneeId !== getCurrentUserId() && <AssigneeChip key="assignee" projectId={task.projectId} userId={task.assigneeId} />,
@@ -229,9 +232,10 @@ function Meta({
 
 function AssigneeChip({ projectId, userId }: { projectId: string; userId: string }) {
   const m = useMembers(projectId).data?.members.find((x) => x.userId === userId);
+  const t = useT().item;
   if (!m) return null;
   return (
-    <span className="inline-flex items-center gap-1 text-xs text-ink-2" title={`Assigned to ${m.name}`}>
+    <span className="inline-flex items-center gap-1 text-xs text-ink-2" title={t.assignedTo(m.name)}>
       <span className="grid size-4 place-items-center rounded-full bg-sunken font-mono text-2xs leading-none text-ink-2">{m.name.slice(0, 1).toUpperCase()}</span>
       {m.name.split(" ")[0]}
     </span>

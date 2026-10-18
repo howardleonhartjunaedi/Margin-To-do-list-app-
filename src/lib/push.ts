@@ -1,6 +1,8 @@
 "use client";
 
 import { api } from "./api";
+import { ensureServiceWorker } from "./sw";
+import { m } from "@/i18n/catalogs";
 
 export type PushState = "unsupported" | "denied" | "off" | "on";
 
@@ -14,7 +16,7 @@ function urlBase64ToUint8Array(base64: string) {
 }
 
 async function registration() {
-  return (await navigator.serviceWorker.getRegistration("/")) ?? navigator.serviceWorker.register("/sw.js", { scope: "/" });
+  return (await ensureServiceWorker())!;
 }
 
 export async function pushState(): Promise<PushState> {
@@ -31,7 +33,7 @@ export async function enablePush(): Promise<PushState> {
   const permission = await Notification.requestPermission();
   if (permission !== "granted") return permission === "denied" ? "denied" : "off";
   const { publicKey } = await api.pushKey();
-  if (!publicKey) throw new Error("Push isn’t configured on this server yet (missing VAPID keys).");
+  if (!publicKey) throw new Error(m().settings.pushNotConfigured);
   const reg = await registration();
   await navigator.serviceWorker.ready;
   const sub =

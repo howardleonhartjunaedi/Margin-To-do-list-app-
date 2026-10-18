@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
+import { localizedTitle } from "@/i18n/server";
 import { ReviewView } from "@/components/day/day-flows";
 
-export const metadata: Metadata = { title: "Review your day" };
+export const generateMetadata = localizedTitle((t) => t.day.reviewTitle);
 
 export default function Page() {
   return <ReviewView />;

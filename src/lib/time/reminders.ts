@@ -1,5 +1,6 @@
 import { addDays } from "../dates";
 import { instantToZoned, minutesOf, zonedToInstant } from "./zone";
+import { m } from "@/i18n/catalogs";
 
 /** A task's reminders are offsets from its due moment, or fixed instants. */
 export type ReminderSpec = { offsetMinutes: number } | { at: Date };
@@ -60,9 +61,9 @@ export function digestDue(now: Date, tz: string, digestTime: string, lastSentOn:
 
 /** "30 minutes before", "At time of task", "1 day before" … */
 export function describeOffset(min: number) {
-  if (min === 0) return "At time of task";
+  const t = m().time;
+  if (min === 0) return t.atTaskTime;
   const abs = Math.abs(min);
-  const unit = abs % 1440 === 0 ? ["day", abs / 1440] : abs % 60 === 0 ? ["hour", abs / 60] : ["minute", abs];
-  const n = unit[1] as number;
-  return `${n} ${unit[0]}${n === 1 ? "" : "s"} ${min > 0 ? "before" : "after"}`;
+  const [unit, n] = abs % 1440 === 0 ? (["day", abs / 1440] as const) : abs % 60 === 0 ? (["hour", abs / 60] as const) : (["minute", abs] as const);
+  return t.offset(n, unit, min > 0);
 }

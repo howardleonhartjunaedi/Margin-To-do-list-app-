@@ -1,0 +1,15 @@
+export default {
+  heading: "Reminders",
+  add: "Add",
+  needsDateHint: "Give the task a date to remind before it — or pick an exact time below.",
+  remindAt: "Remind at",
+  set: "Set",
+  none: "No reminders.",
+  chooseWhere: "Choose where they reach you",
+  atSetTime: "At a set time",
+  sent: "Sent",
+  passed: "Passed",
+  failed: "Couldn’t send",
+  needsDate: "Needs a date",
+  remove: (label: string) => `Remove reminder: ${label}`,
+};

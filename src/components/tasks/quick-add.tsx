@@ -13,6 +13,7 @@ import { truncate, useProjectActions, useProjects, useTaskActions } from "@/lib/
 import { formatDue } from "@/lib/dates";
 import { parseQuickAdd } from "@/lib/quick-add/parse";
 import { ParsedChips, SmartInput } from "./smart-input";
+import { useT } from "@/i18n/client";
 
 /**
  * Global quick add (Q). Type a line, press Enter, keep typing.
@@ -20,6 +21,7 @@ import { ParsedChips, SmartInput } from "./smart-input";
  */
 export function QuickAddDialog() {
   const { quickAdd, closeQuickAdd, today } = useAppUI();
+  const t = useT().quick;
   return (
     <DialogPrimitive.Root open={quickAdd.open} onOpenChange={(o) => !o && closeQuickAdd()}>
       <DialogPrimitive.Portal>
@@ -28,7 +30,7 @@ export function QuickAddDialog() {
           aria-describedby="quick-add-help"
           className="fixed inset-x-3 top-[12vh] z-40 mx-auto max-w-xl rounded-md bg-raised shadow-3 ring-1 ring-line outline-none [--pop-y:-8px] data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in"
         >
-          <DialogPrimitive.Title className="sr-only">Add a task</DialogPrimitive.Title>
+          <DialogPrimitive.Title className="sr-only">{t.dialogTitle}</DialogPrimitive.Title>
           <QuickAddForm defaults={quickAdd.defaults} today={today} onDone={closeQuickAdd} />
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
@@ -51,6 +53,8 @@ function QuickAddForm({
   const { create } = useTaskActions();
   const projectActions = useProjectActions();
   const input = useRef<HTMLInputElement>(null);
+  const tr = useT();
+  const t = tr.quick;
 
   const parsed = useMemo(() => parseQuickAdd(text, { projects }), [text, projects]);
   const defaultProject = projects.find((p) => p.id === defaults.projectId);
@@ -75,8 +79,8 @@ function QuickAddForm({
     const dueDate = parsed.dueDate ?? defaults.dueDate ?? null;
     const id = crypto.randomUUID();
     setText("");
-    const where = [projectName ?? "Inbox", dueDate && formatDue(dueDate, today, parsed.dueTime)].filter(Boolean).join(", ");
-    setAdded({ id, text: `Added “${truncate(parsed.title, 32)}” to ${where}.` });
+    const where = [projectName ?? tr.nav.inbox, dueDate && formatDue(dueDate, today, parsed.dueTime)].filter(Boolean).join(", ");
+    setAdded({ id, text: t.added(truncate(parsed.title, 32), where) });
     await create({
       id,
       title: parsed.title,
@@ -104,8 +108,8 @@ function QuickAddForm({
           value={text}
           onValueChange={setText}
           parsed={parsed}
-          placeholder="Call Sam tomorrow 4pm #work p2"
-          aria-label="Task, with optional date, priority, #project and @labels"
+          placeholder={t.placeholder}
+          aria-label={t.inputLabel}
           onKeyDown={(e) => {
             if (e.key === "Escape" && text) {
               e.preventDefault();
@@ -136,21 +140,23 @@ function QuickAddForm({
               </motion.p>
             ) : (
               <motion.p key="help" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="truncate text-ink-3">
-                Try <span className="font-mono text-2xs text-ink-2">fri 9am</span> ·{" "}
-                <span className="font-mono text-2xs text-ink-2">every mon</span> ·{" "}
-                <span className="font-mono text-2xs text-ink-2">p1</span> ·{" "}
-                <span className="font-mono text-2xs text-ink-2">#project</span> ·{" "}
-                <span className="font-mono text-2xs text-ink-2">@label</span>
+                {t.try}{" "}
+                {t.examples.map((ex, i) => (
+                  <span key={ex}>
+                    {i > 0 && " · "}
+                    <span className="font-mono text-2xs text-ink-2">{ex}</span>
+                  </span>
+                ))}
               </motion.p>
             )}
           </AnimatePresence>
         </div>
         <div className="flex items-center gap-2">
           <Button type="button" variant="ghost" size="sm" onClick={onDone} className="max-sm:hidden">
-            Done <Kbd>Esc</Kbd>
+            {t.done} <Kbd>Esc</Kbd>
           </Button>
           <Button type="submit" variant="primary" size="sm" disabled={!parsed.title}>
-            Add <Icon icon={CornerDownLeft} size="xs" />
+            {t.add} <Icon icon={CornerDownLeft} size="xs" />
           </Button>
         </div>
       </div>

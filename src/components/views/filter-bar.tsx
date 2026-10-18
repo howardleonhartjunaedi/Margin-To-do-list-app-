@@ -13,7 +13,8 @@ import { spring } from "@/design/motion";
 import { cn } from "@/lib/cn";
 import { useCounts, useProjects } from "@/lib/data";
 import { useFilterActions } from "@/lib/data-filters";
-import { decodeFilter, DUE_LABEL, encodeFilter, EMPTY_FILTER, isEmptyFilter, type DueBucket, type Filter } from "@/lib/filters";
+import { decodeFilter, DUE_BUCKETS, dueLabel, encodeFilter, EMPTY_FILTER, isEmptyFilter, type Filter } from "@/lib/filters";
+import { useT } from "@/i18n/client";
 import { projectDot } from "@/lib/project-colors";
 import type { Priority } from "@/lib/types";
 import { useUrlParam } from "@/lib/view-transition";
@@ -44,6 +45,8 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
 
 export function FilterButton({ filter, onChange, hideProjects }: { filter: Filter; onChange: (f: Filter) => void; hideProjects?: boolean }) {
   const { today } = useAppUI();
+  const tr = useT();
+  const t = tr.filter;
   const projects = useProjects().data ?? [];
   const labels = useCounts(today).data?.labels ?? [];
   const active =
@@ -53,7 +56,7 @@ export function FilterButton({ filter, onChange, hideProjects }: { filter: Filte
     <Popover>
       <PopoverTrigger asChild>
         <Button size="sm" variant={active ? "secondary" : "ghost"}>
-          <Icon icon={ListFilter} /> Filter
+          <Icon icon={ListFilter} /> {t.filter}
           {active > 0 && <span className="font-mono text-2xs text-ink-3">{active}</span>}
         </Button>
       </PopoverTrigger>
@@ -61,11 +64,11 @@ export function FilterButton({ filter, onChange, hideProjects }: { filter: Filte
         <Input
           value={filter.text}
           onChange={(e) => onChange({ ...filter, text: e.target.value })}
-          placeholder="Words in the title or notes"
-          aria-label="Filter by text"
+          placeholder={t.textPlaceholder}
+          aria-label={t.byText}
         />
         <fieldset>
-          <legend className="mb-2 font-mono text-2xs tracking-wider text-ink-3 uppercase">Priority</legend>
+          <legend className="mb-2 font-mono text-2xs tracking-wider text-ink-3 uppercase">{t.priority}</legend>
           <div className="flex flex-wrap gap-1.5">
             {([1, 2, 3, 4] as Priority[]).map((p) => (
               <Chip key={p} on={filter.priorities.includes(p)} onClick={() => onChange({ ...filter, priorities: toggle(filter.priorities, p) })}>
@@ -75,21 +78,21 @@ export function FilterButton({ filter, onChange, hideProjects }: { filter: Filte
           </div>
         </fieldset>
         <fieldset>
-          <legend className="mb-2 font-mono text-2xs tracking-wider text-ink-3 uppercase">Date</legend>
+          <legend className="mb-2 font-mono text-2xs tracking-wider text-ink-3 uppercase">{t.date}</legend>
           <div className="flex flex-wrap gap-1.5">
-            {(Object.keys(DUE_LABEL) as DueBucket[]).map((d) => (
+            {DUE_BUCKETS.map((d) => (
               <Chip key={d} on={filter.due.includes(d)} onClick={() => onChange({ ...filter, due: toggle(filter.due, d) })}>
-                {DUE_LABEL[d]}
+                {dueLabel(d)}
               </Chip>
             ))}
           </div>
         </fieldset>
         {!hideProjects && (
           <fieldset>
-            <legend className="mb-2 font-mono text-2xs tracking-wider text-ink-3 uppercase">Project</legend>
+            <legend className="mb-2 font-mono text-2xs tracking-wider text-ink-3 uppercase">{t.project}</legend>
             <div className="flex flex-wrap gap-1.5">
               <Chip on={filter.projects.includes("inbox")} onClick={() => onChange({ ...filter, projects: toggle(filter.projects, "inbox") })}>
-                Inbox
+                {tr.nav.inbox}
               </Chip>
               {projects.map((p) => (
                 <Chip key={p.id} on={filter.projects.includes(p.id)} onClick={() => onChange({ ...filter, projects: toggle(filter.projects, p.id) })}>
@@ -102,7 +105,7 @@ export function FilterButton({ filter, onChange, hideProjects }: { filter: Filte
         )}
         {labels.length > 0 && (
           <fieldset>
-            <legend className="mb-2 font-mono text-2xs tracking-wider text-ink-3 uppercase">Label</legend>
+            <legend className="mb-2 font-mono text-2xs tracking-wider text-ink-3 uppercase">{t.label}</legend>
             <div className="flex flex-wrap gap-1.5">
               {labels.map((l) => (
                 <Chip key={l} on={filter.labels.includes(l)} onClick={() => onChange({ ...filter, labels: toggle(filter.labels, l) })}>
@@ -114,7 +117,7 @@ export function FilterButton({ filter, onChange, hideProjects }: { filter: Filte
         )}
         {active > 0 && (
           <Button size="sm" variant="ghost" className="self-start" onClick={() => onChange(EMPTY_FILTER)}>
-            Clear all
+            {t.clearAll}
           </Button>
         )}
       </PopoverContent>
@@ -135,6 +138,8 @@ export function ActiveFilters({
   savedQuery?: string;
 }) {
   const projects = useProjects().data ?? [];
+  const tr = useT();
+  const t = tr.filter;
   const { create, update } = useFilterActions();
   const router = useRouter();
   const [naming, setNaming] = useState(false);
@@ -144,10 +149,10 @@ export function ActiveFilters({
 
   const chips: { key: string; label: string; remove: () => void }[] = [
     ...filter.priorities.map((p) => ({ key: `p${p}`, label: `P${p}`, remove: () => onChange({ ...filter, priorities: filter.priorities.filter((x) => x !== p) }) })),
-    ...filter.due.map((d) => ({ key: `d${d}`, label: DUE_LABEL[d], remove: () => onChange({ ...filter, due: filter.due.filter((x) => x !== d) }) })),
+    ...filter.due.map((d) => ({ key: `d${d}`, label: dueLabel(d), remove: () => onChange({ ...filter, due: filter.due.filter((x) => x !== d) }) })),
     ...filter.projects.map((id) => ({
       key: `pr${id}`,
-      label: id === "inbox" ? "Inbox" : (projects.find((p) => p.id === id)?.name ?? "A deleted project"),
+      label: id === "inbox" ? tr.nav.inbox : (projects.find((p) => p.id === id)?.name ?? t.deletedProject),
       remove: () => onChange({ ...filter, projects: filter.projects.filter((x) => x !== id) }),
     })),
     ...filter.labels.map((l) => ({ key: `l${l}`, label: `@${l}`, remove: () => onChange({ ...filter, labels: filter.labels.filter((x) => x !== l) }) })),
@@ -169,7 +174,7 @@ export function ActiveFilters({
             className="inline-flex h-7 items-center gap-1 rounded-sm bg-sunken pr-1 pl-2 text-xs text-ink"
           >
             {c.label}
-            <button type="button" onClick={c.remove} aria-label={`Remove ${c.label}`} className="grid size-5 place-items-center rounded-sm text-ink-3 hover:bg-raised hover:text-ink">
+            <button type="button" onClick={c.remove} aria-label={t.remove(c.label)} className="grid size-5 place-items-center rounded-sm text-ink-3 hover:bg-raised hover:text-ink">
               <Icon icon={X} size="xs" />
             </button>
           </motion.span>
@@ -178,14 +183,14 @@ export function ActiveFilters({
       <div className="ml-auto flex items-center gap-1">
         {savedId && dirty && (
           <Button size="sm" variant="secondary" onClick={() => void update(savedId, { query: encoded })}>
-            Update filter
+            {t.update}
           </Button>
         )}
         {!savedId && !isEmptyFilter(filter) && (
           <Popover open={naming} onOpenChange={setNaming}>
             <PopoverTrigger asChild>
               <Button size="sm" variant="ghost">
-                <Icon icon={Bookmark} /> Save
+                <Icon icon={Bookmark} /> {t.save}
               </Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-72 p-3">
@@ -200,16 +205,16 @@ export function ActiveFilters({
                   if (saved) router.push(`/filter/${id}?f=${encodeURIComponent(encoded)}`);
                 }}
               >
-                <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Name this filter" aria-label="Filter name" />
+                <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={t.namePlaceholder} aria-label={t.name} />
                 <Button type="submit" size="md" variant="primary" disabled={!name.trim()}>
-                  Save
+                  {t.save}
                 </Button>
               </form>
             </PopoverContent>
           </Popover>
         )}
         <Button size="sm" variant="ghost" onClick={() => onChange(savedQuery !== undefined ? decodeFilter(savedQuery) : EMPTY_FILTER)}>
-          {savedId ? "Reset" : "Clear"}
+          {savedId ? t.reset : t.clear}
         </Button>
       </div>
     </div>

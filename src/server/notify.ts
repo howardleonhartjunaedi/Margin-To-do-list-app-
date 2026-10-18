@@ -1,6 +1,7 @@
 import "server-only";
 import { and, asc, count, desc, eq, inArray, isNull, ne } from "drizzle-orm";
 import { snoozeUntil, type SnoozeChoice } from "@/lib/time/reminders";
+import { aiConfigured } from "./ai";
 import type { Notification, ReminderInfo, Settings } from "@/lib/types";
 import { db } from "./db";
 import { notification, pushSubscription, reminder, task, userSettings } from "./db/schema";
@@ -100,13 +101,16 @@ export function toSettings(s: Awaited<ReturnType<typeof getSettings>>): Settings
     emailEnabled: s.emailEnabled,
     digestEnabled: s.digestEnabled,
     digestTime: s.digestTime,
+    locale: s.locale,
+    aiEnabled: s.aiEnabled,
   };
 }
 
 export async function readSettings(userId: string) {
   const s = await getSettings(db, userId);
   const [{ devices }] = await db.select({ devices: count() }).from(pushSubscription).where(eq(pushSubscription.userId, userId));
-  return { ...toSettings(s), pushDevices: devices };
+  // aiAvailable: whether this server has a model configured at all (independent of the user's consent).
+  return { ...toSettings(s), pushDevices: devices, aiAvailable: aiConfigured() };
 }
 
 export async function updateSettings(userId: string, patch: Partial<Settings>) {

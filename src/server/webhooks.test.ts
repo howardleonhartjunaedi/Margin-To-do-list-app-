@@ -47,7 +47,9 @@ describe("delivery", () => {
     if (respond instanceof Error) throw respond;
     return { status: respond };
   };
-  const t0 = new Date("2026-10-18T10:00:00Z");
+  // Deliveries are enqueued with the real clock (defaultNow), so "now" in these tests must be
+  // after it — a fixed date made the suite pass or fail depending on the time of day.
+  const t0 = new Date(Math.ceil(Date.now() / 1000) * 1000 + 60_000);
   const at = (ms: number) => new Date(t0.getTime() + ms);
 
   beforeEach(async () => {

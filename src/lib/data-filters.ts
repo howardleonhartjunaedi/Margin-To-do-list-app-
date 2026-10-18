@@ -4,9 +4,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/ui/toast";
 import { api, ApiError } from "./api";
 import type { SavedFilter } from "./types";
+import { m } from "@/i18n/catalogs";
 
 const KEY = ["filters"] as const;
-const failed = (e: unknown) => toast(e instanceof ApiError ? e.message : "Something went wrong. Your change wasn’t saved.");
+const failed = (e: unknown) => toast(e instanceof ApiError ? e.message : m().common.somethingWrong);
 
 export const useSavedFilters = () => useQuery({ queryKey: KEY, queryFn: api.filters });
 
@@ -20,7 +21,7 @@ export function useFilterActions() {
       try {
         const saved = await api.createFilter(input);
         set((fs) => fs.map((f) => (f.id === saved.id ? saved : f)));
-        toast(`Saved “${saved.name}”. It’s in the sidebar.`);
+        toast(m().filter.saved(saved.name));
         return saved;
       } catch (e) {
         qc.setQueryData(KEY, prev);
@@ -32,7 +33,7 @@ export function useFilterActions() {
       set((fs) => fs.map((f) => (f.id === id ? { ...f, ...patch } : f)));
       try {
         await api.updateFilter(id, patch);
-        if (patch.query !== undefined) toast("Filter updated.");
+        if (patch.query !== undefined) toast(m().filter.updated);
       } catch (e) {
         qc.setQueryData(KEY, prev);
         failed(e);

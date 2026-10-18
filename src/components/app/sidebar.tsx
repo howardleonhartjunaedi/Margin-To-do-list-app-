@@ -29,12 +29,14 @@ import { NotificationsButton } from "./notifications";
 import { useSavedFilters } from "@/lib/data-filters";
 import { isMac } from "@/lib/shortcuts";
 import { ProjectForm } from "./project-form";
+import { useT } from "@/i18n/client";
 
 export function SidebarContent({ user, onNavigate }: { user: { name: string; email: string }; onNavigate?: () => void }) {
   const { today, openQuickAdd, openPalette } = useAppUI();
   const counts = useCounts(today).data;
   const projects = useProjects();
   const pathname = usePathname();
+  const t = useT().nav;
 
   return (
     <div className="flex h-full flex-col gap-6 px-3 pt-4 pb-3">
@@ -45,7 +47,7 @@ export function SidebarContent({ user, onNavigate }: { user: { name: string; ema
       </div>
 
       <Button variant="primary" magnetic className="w-full justify-start" onClick={() => (onNavigate?.(), openQuickAdd())}>
-        <Icon icon={Plus} /> Add task
+        <Icon icon={Plus} /> {t.addTask}
         <Kbd className="ml-auto bg-transparent text-accent-ink/80 shadow-none ring-accent-ink/30">Q</Kbd>
       </Button>
 
@@ -54,29 +56,29 @@ export function SidebarContent({ user, onNavigate }: { user: { name: string; ema
         className="-mt-3 flex h-9 items-center gap-3 rounded-md px-2 text-sm text-ink-2 transition-colors duration-(--dur-fast) hover:bg-sunken/60 hover:text-ink"
       >
         <Icon icon={Search} />
-        <span className="flex-1 text-left">Search</span>
+        <span className="flex-1 text-left">{t.search}</span>
         <Kbd>{isMac() ? "⌘K" : "Ctrl K"}</Kbd>
       </button>
 
-      <nav aria-label="Views">
+      <nav aria-label={t.views}>
         <ul className="flex flex-col gap-0.5">
-          <NavItem href="/inbox" icon={Inbox} label="Inbox" count={counts?.inbox} active={pathname === "/inbox"} onNavigate={onNavigate} hint="G I" />
+          <NavItem href="/inbox" icon={Inbox} label={t.inbox} count={counts?.inbox} active={pathname === "/inbox"} onNavigate={onNavigate} hint="G I" />
           <NavItem
             href="/today"
             icon={Sun}
-            label="Today"
+            label={t.today}
             count={counts?.today}
-            alert={counts?.overdue ? `${counts.overdue} overdue` : undefined}
+            alert={counts?.overdue ? t.overdue(counts.overdue) : undefined}
             active={pathname === "/today"}
             onNavigate={onNavigate}
             hint="G T"
           />
-          <NavItem href="/upcoming" icon={CalendarDays} label="Upcoming" active={pathname === "/upcoming"} onNavigate={onNavigate} hint="G U" />
+          <NavItem href="/upcoming" icon={CalendarDays} label={t.upcoming} active={pathname === "/upcoming"} onNavigate={onNavigate} hint="G U" />
         </ul>
         <ul className="mt-4 flex flex-col gap-0.5">
-          <NavItem href="/focus" icon={Timer} label="Focus" active={pathname === "/focus"} onNavigate={onNavigate} hint="G F" />
-          <NavItem href="/habits" icon={Repeat2} label="Habits" active={pathname === "/habits"} onNavigate={onNavigate} hint="G H" />
-          <NavItem href="/stats" icon={ChartColumn} label="Stats" active={pathname === "/stats"} onNavigate={onNavigate} />
+          <NavItem href="/focus" icon={Timer} label={t.focus} active={pathname === "/focus"} onNavigate={onNavigate} hint="G F" />
+          <NavItem href="/habits" icon={Repeat2} label={t.habits} active={pathname === "/habits"} onNavigate={onNavigate} hint="G H" />
+          <NavItem href="/stats" icon={ChartColumn} label={t.stats} active={pathname === "/stats"} onNavigate={onNavigate} />
         </ul>
         <div className="mt-2">
           <FocusPill onNavigate={onNavigate} />
@@ -87,7 +89,7 @@ export function SidebarContent({ user, onNavigate }: { user: { name: string; ema
       <section aria-labelledby="projects-h">
         <div className="mb-1 flex items-center justify-between px-2">
           <h2 id="projects-h" className="font-mono text-2xs tracking-wider text-ink-3 uppercase">
-            Projects
+            {t.projects}
           </h2>
           <NewProjectButton />
         </div>
@@ -104,14 +106,14 @@ export function SidebarContent({ user, onNavigate }: { user: { name: string; ema
               key={p.id}
               href={`/project/${p.id}`}
               dot={projectDot(p.color)}
-              label={p.memberCount > 1 ? `${p.name} · shared` : p.name}
+              label={p.memberCount > 1 ? t.shared(p.name) : p.name}
               count={p.openCount}
               active={pathname === `/project/${p.id}`}
               onNavigate={onNavigate}
             />
           ))}
           {projects.data?.length === 0 && (
-            <li className="px-2 py-1 text-xs text-ink-3">Group tasks by area of life or piece of work.</li>
+            <li className="px-2 py-1 text-xs text-ink-3">{t.projectsEmpty}</li>
           )}
         </ul>
       </section>
@@ -122,8 +124,8 @@ export function SidebarContent({ user, onNavigate }: { user: { name: string; ema
         <UserMenu user={user} />
         <div className="ml-auto flex items-center">
           <NotificationsButton />
-          <Tooltip content="Settings">
-            <Button asChild variant="ghost" size="icon-sm" aria-label="Settings">
+          <Tooltip content={t.settings}>
+            <Button asChild variant="ghost" size="icon-sm" aria-label={t.settings}>
               <Link href="/settings" onClick={onNavigate}>
                 <Icon icon={Settings} className={pathname === "/settings" ? "text-accent" : undefined} />
               </Link>
@@ -157,6 +159,7 @@ function NavItem({
   hint?: string;
   onNavigate?: () => void;
 }) {
+  const t = useT().nav;
   const link = (
     <Link
       href={href}
@@ -178,7 +181,7 @@ function NavItem({
       {alert && (
         <span className="relative font-mono text-2xs text-danger" title={alert}>
           {alert.split(" ")[0]}
-          <span className="sr-only"> overdue</span>
+          <span className="sr-only"> {t.overdueSr}</span>
         </span>
       )}
       {!!count && <span className="relative font-mono text-2xs text-ink-3">{count}</span>}
@@ -189,11 +192,12 @@ function NavItem({
 
 function FiltersSection({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
   const filters = useSavedFilters().data;
+  const t = useT().nav;
   if (!filters?.length) return null;
   return (
     <section aria-labelledby="filters-h">
       <h2 id="filters-h" className="mb-1 px-2 font-mono text-2xs tracking-wider text-ink-3 uppercase">
-        Filters
+        {t.filters}
       </h2>
       <ul className="flex flex-col gap-0.5">
         {filters.map((f) => (
@@ -215,18 +219,19 @@ function NewProjectButton() {
   const [open, setOpen] = useState(false);
   const { create } = useProjectActions();
   const router = useRouter();
+  const t = useT().nav;
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <Tooltip content="New project">
+      <Tooltip content={t.newProject}>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon-sm" aria-label="New project">
+          <Button variant="ghost" size="icon-sm" aria-label={t.newProject}>
             <Icon icon={Plus} />
           </Button>
         </PopoverTrigger>
       </Tooltip>
       <PopoverContent side="right" align="start" className="w-72 p-4">
         <ProjectForm
-          submitLabel="Create project"
+          submitLabel={t.createProject}
           onSubmit={async ({ name, color }) => {
             const id = crypto.randomUUID();
             setOpen(false);
@@ -241,6 +246,7 @@ function NewProjectButton() {
 
 function UserMenu({ user }: { user: { name: string; email: string } }) {
   const router = useRouter();
+  const t = useT().nav;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -261,7 +267,7 @@ function UserMenu({ user }: { user: { name: string; email: string } }) {
             router.refresh();
           }}
         >
-          Sign out
+          {t.signOut}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import { usePreferences } from "@/components/providers/preferences";
 import { Icon } from "@/components/ui/icon";
 import { cn } from "@/lib/cn";
+import type { Messages } from "@/i18n/catalogs";
 
 /*
  * The feature story. On wide screens with Full motion the section pins, and scrolling
@@ -14,38 +15,34 @@ import { cn } from "@/lib/cn";
  * simply stack — same content, no choreography.
  */
 
-const STEPS = [
-  { n: "01", title: "Say it the way you’d say it.", body: "Dates, times, priority, project and repeats come straight out of the sentence. No forms." },
-  { n: "02", title: "Reminded at the right moment.", body: "On your phone, your desktop or your inbox — and held until morning if it falls in your quiet hours." },
-  { n: "03", title: "Your week, at a glance.", body: "Drag a task to another day. Everything with a date lands on the calendar where you can see it." },
-  { n: "04", title: "Notice what’s working.", body: "What you finish, when you’re focused, which projects move. Quietly, without a leaderboard." },
-];
+type T = Messages["landing"];
 
-const SENTENCE = "Call the plumber tomorrow 2pm p1 #home";
-const MARKS: [number, number, string][] = [
-  [17, 30, "bg-accent-soft"], // "tomorrow 2pm"
-  [31, 33, "bg-warning-soft"], // "p1"
-  [34, 39, "bg-sunken ring-1 ring-line-strong ring-inset"], // "#home"
-];
+const MARK_STYLE = { date: "bg-accent-soft", priority: "bg-warning-soft", project: "bg-sunken ring-1 ring-line-strong ring-inset" } as const;
 
-function SceneQuickAdd() {
+/** Character ranges of the highlighted parts, found in the sentence itself (so any language works). */
+function marksFor(t: T): [number, number, string][] {
+  return t.sentenceMarks
+    .map(([part, kind]) => {
+      const s = t.sentence.indexOf(part);
+      return [s, s + part.length, MARK_STYLE[kind]] as [number, number, string];
+    })
+    .filter(([s]) => s >= 0)
+    .sort((a, b) => a[0] - b[0]);
+}
+
+function SceneQuickAdd({ t }: { t: T }) {
   return (
     <div className="w-full max-w-md rounded-md bg-raised p-5 shadow-2 ring-1 ring-line">
-      <p className="font-mono text-2xs tracking-wider text-ink-3 uppercase">Quick add</p>
+      <p className="font-mono text-2xs tracking-wider text-ink-3 uppercase">{t.quickAdd}</p>
       <p className="mt-3 min-h-8 text-lg text-ink" data-typed>
-        <span data-typed-text>{SENTENCE}</span>
+        <span data-typed-text>{t.sentence}</span>
         <span className="ml-0.5 inline-block h-5 w-px translate-y-1 bg-ink" data-caret />
       </p>
       <ul className="mt-4 flex flex-wrap gap-1.5">
-        {[
-          [CalendarDays, "Tomorrow"],
-          [Bell, "14:00"],
-          [Flag, "P1"],
-          [Hash, "Home"],
-        ].map(([I, t]) => (
-          <li key={t as string} data-chip className="inline-flex h-7 items-center gap-1.5 rounded-sm bg-sunken px-2 text-xs text-ink">
-            <Icon icon={I as typeof Bell} size="xs" className="text-ink-3" />
-            {t as string}
+        {[CalendarDays, Bell, Flag, Hash].map((I, i) => (
+          <li key={i} data-chip className="inline-flex h-7 items-center gap-1.5 rounded-sm bg-sunken px-2 text-xs text-ink">
+            <Icon icon={I} size="xs" className="text-ink-3" />
+            {t.chips[i]}
           </li>
         ))}
       </ul>
@@ -53,7 +50,7 @@ function SceneQuickAdd() {
   );
 }
 
-function SceneReminder() {
+function SceneReminder({ t }: { t: T }) {
   return (
     <div className="w-full max-w-sm">
       <p className="mb-3 text-center font-mono text-3xl text-ink-3" data-clock>
@@ -61,35 +58,35 @@ function SceneReminder() {
       </p>
       <div data-notice className="rounded-md bg-ink p-4 text-bg shadow-3">
         <div className="flex items-center gap-2 text-xs text-bg/70">
-          <Icon icon={Bell} size="xs" /> Margin · now
+          <Icon icon={Bell} size="xs" /> Margin · {t.now}
         </div>
-        <p className="mt-2 text-base font-medium">Call the plumber</p>
-        <p className="text-sm text-bg/75">Due Today 14:00</p>
+        <p className="mt-2 text-base font-medium">{t.reminderTitle}</p>
+        <p className="text-sm text-bg/75">{t.reminderDue}</p>
         <div className="mt-3 flex gap-4 text-sm">
-          <span className="font-medium underline decoration-bg/40 underline-offset-4">Done</span>
-          <span className="text-bg/75">Snooze 10 min</span>
+          <span className="font-medium underline decoration-bg/40 underline-offset-4">{t.done}</span>
+          <span className="text-bg/75">{t.snooze}</span>
         </div>
       </div>
     </div>
   );
 }
 
-function SceneCalendar() {
+function SceneCalendar({ t }: { t: T }) {
   const days = Array.from({ length: 21 }, (_, i) => i + 12);
   return (
     <div className="w-full max-w-md rounded-md bg-raised p-4 shadow-2 ring-1 ring-line">
-      <p className="mb-3 font-display text-lg text-ink">October</p>
+      <p className="mb-3 font-display text-lg text-ink">{t.month}</p>
       <div className="grid grid-cols-7 gap-px overflow-hidden rounded-sm bg-line">
         {days.map((d) => (
           <div key={d} className="relative h-12 bg-bg p-1 font-mono text-2xs text-ink-3">
             {d}
             {d === 21 && (
               <span data-chip-drop className="absolute inset-x-1 bottom-1 truncate rounded-sm bg-accent-soft px-1 text-2xs text-ink">
-                Plumber
+                {t.calendarChips.plumber}
               </span>
             )}
-            {d === 15 && <span className="absolute inset-x-1 bottom-1 truncate rounded-sm bg-sunken px-1 text-2xs text-ink-2">Budget</span>}
-            {d === 24 && <span className="absolute inset-x-1 bottom-1 truncate rounded-sm bg-sunken px-1 text-2xs text-ink-2">Flights</span>}
+            {d === 15 && <span className="absolute inset-x-1 bottom-1 truncate rounded-sm bg-sunken px-1 text-2xs text-ink-2">{t.calendarChips.budget}</span>}
+            {d === 24 && <span className="absolute inset-x-1 bottom-1 truncate rounded-sm bg-sunken px-1 text-2xs text-ink-2">{t.calendarChips.flights}</span>}
           </div>
         ))}
       </div>
@@ -97,19 +94,19 @@ function SceneCalendar() {
   );
 }
 
-function SceneStats() {
+function SceneStats({ t, weekdays }: { t: T; weekdays: string[] }) {
   const bars = [3, 5, 2, 6, 4, 7, 5];
   return (
     <div className="w-full max-w-md rounded-md bg-raised p-5 shadow-2 ring-1 ring-line">
-      <p className="text-xs text-ink-2">Done this week</p>
+      <p className="text-xs text-ink-2">{t.doneThisWeek}</p>
       <p className="font-sans text-5xl font-semibold tracking-tight text-ink" data-count>
         32
       </p>
-      <div className="mt-4 flex h-28 items-end gap-2" role="img" aria-label="Tasks done per day this week: 3, 5, 2, 6, 4, 7, 5">
+      <div className="mt-4 flex h-28 items-end gap-2" role="img" aria-label={t.barsLabel}>
         {bars.map((b, i) => (
           <div key={i} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
             <div data-bar className={cn("w-full max-w-6 origin-bottom rounded-t-sm", i === 5 ? "bg-accent" : "bg-ink-3")} style={{ height: `${(b / 7) * 85}%` }} />
-            <span className="font-mono text-2xs text-ink-3">{"MTWTFSS"[i]}</span>
+            <span className="font-mono text-2xs text-ink-3">{weekdays[i]}</span>
           </div>
         ))}
       </div>
@@ -117,9 +114,10 @@ function SceneStats() {
   );
 }
 
-const SCENES = [SceneQuickAdd, SceneReminder, SceneCalendar, SceneStats];
+const SCENES: React.ComponentType<{ t: T; weekdays: string[] }>[] = [SceneQuickAdd, SceneReminder, SceneCalendar, SceneStats];
 
-export function Story() {
+/** weekdays: Monday-first narrow names in the page's language. */
+export function Story({ t, weekdays }: { t: T; weekdays: string[] }) {
   const root = useRef<HTMLElement>(null);
   const { motion: level } = usePreferences();
 
@@ -142,7 +140,7 @@ export function Story() {
       wide.removeEventListener("change", start);
       mm?.revert();
     };
-  }, [level]);
+  }, [level, t]);
 
   function build(gsap: GSAP, ScrollTrigger: typeof ScrollTriggerType) {
     gsap.registerPlugin(ScrollTrigger);
@@ -155,6 +153,8 @@ export function Story() {
       const steps = q("[data-step]");
       const typed = el.querySelector<HTMLElement>("[data-typed-text]")!;
       const state = { chars: 0 };
+      const SENTENCE = t.sentence;
+      const MARKS = marksFor(t);
 
       // Lay scenes out in depth; the "camera" (the world group) travels toward them.
       gsap.set(scenes, { position: "absolute", inset: 0, opacity: (i: number) => (i === 0 ? 1 : 0), z: (i: number) => -i * 700 });
@@ -224,14 +224,14 @@ export function Story() {
       <div data-pin className="mx-auto grid max-w-6xl gap-12 px-4 py-20 sm:px-8 lg:h-dvh lg:grid-cols-[1fr_1.1fr] lg:items-center lg:py-0">
         <div>
           <h2 id="story-h" className="font-mono text-2xs tracking-wider text-ink-3 uppercase">
-            How it works
+            {t.howItWorks}
           </h2>
           <ol className="mt-6 flex flex-col gap-8">
-            {STEPS.map((s) => (
-              <li key={s.n} className="relative grid grid-cols-[2.5rem_1fr] gap-x-2">
+            {t.steps.map((s, i) => (
+              <li key={i} className="relative grid grid-cols-[2.5rem_1fr] gap-x-2">
                 {/* Marks the step in view while pinned; text keeps full contrast throughout. */}
                 <span data-step aria-hidden className="absolute top-1 bottom-1 -left-4 hidden w-0.5 origin-top rounded-full bg-accent lg:block" style={{ transform: "scaleY(0)" }} />
-                <span className="pt-1.5 font-mono text-xs text-accent">{s.n}</span>
+                <span className="pt-1.5 font-mono text-xs text-accent">{String(i + 1).padStart(2, "0")}</span>
                 <div>
                   <h3 className="font-display text-2xl text-ink">{s.title}</h3>
                   <p className="mt-1.5 max-w-[42ch] text-base text-ink-2">{s.body}</p>
@@ -244,7 +244,7 @@ export function Story() {
           <div className="flex flex-col items-center gap-10 lg:block lg:size-full" style={{ transformStyle: "preserve-3d" }}>
             {SCENES.map((Scene, i) => (
               <div key={i} data-scene className="flex w-full items-center justify-center">
-                <Scene />
+                <Scene t={t} weekdays={weekdays} />
               </div>
             ))}
           </div>

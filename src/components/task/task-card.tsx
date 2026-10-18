@@ -3,7 +3,7 @@
 import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
 import { spring } from "@/design/motion";
 import { cn } from "@/lib/cn";
-import { useCursorEnabled } from "../cursor/custom-cursor";
+import { useCursorEnabled } from "../cursor/use-cursor-enabled";
 import { Dot } from "../ui/badge";
 import { PriorityFlag } from "../ui/priority";
 import type { TaskLite } from "./task-row";

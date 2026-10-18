@@ -6,6 +6,8 @@ import type { Db } from "../db/types";
 import { notification, reminder, task, user, userSettings } from "../db/schema";
 import { getSettings } from "../reminders";
 import { forMe, taskAccess, visibleTask } from "../access";
+import { m } from "@/i18n/catalogs";
+import { isLocale, type Locale } from "@/i18n/locales";
 
 /*
  * One scheduler tick. Pure with respect to time and delivery: `now` and the outbound
@@ -32,6 +34,8 @@ export interface OutboundMessage {
   taskId?: string;
   /** Email footer; defaults to the reminders explanation. */
   footer?: string;
+  /** Language for the message chrome (button, footer). Defaults to English. */
+  locale?: Locale;
 }
 
 export interface Channels {
@@ -132,11 +136,13 @@ async function handleReminder(
   const late = !!r.fireAt && now.getTime() - r.fireAt.getTime() > LATE_AFTER_MS;
   const today = instantToZoned(now, s.timeZone).date;
   const time = t.dueTime ? formatTime(t.dueTime) : null;
+  const locale: Locale = isLocale(s.locale) ? s.locale : "en";
+  const words = m(locale).email;
   const body = !t.dueDate
-    ? "Reminder"
+    ? words.reminder
     : t.dueDate < today
-      ? `Overdue — was due ${formatDue(t.dueDate, today, time)}`
-      : `Due ${formatDue(t.dueDate, today, time)}`;
+      ? words.overdueWas(formatDue(t.dueDate, today, time, locale))
+      : words.due(formatDue(t.dueDate, today, time, locale));
 
   await db.transaction(async (tx) => {
     await tx.insert(notification).values({
@@ -167,6 +173,7 @@ async function handleReminder(
     body,
     url: `${baseUrl}/today?task=${t.id}`,
     tag: `reminder-${r.id}`,
+    locale,
     reminderId: r.id,
     taskId: t.id,
   };
@@ -212,9 +219,11 @@ async function runDigests(db: Db, now: Date, channels: Channels, baseUrl: string
 
     const overdue = rows.filter((r) => r.dueDate! < localDate).length;
     const todayCount = rows.length - overdue;
-    const title = `Today: ${todayCount} ${todayCount === 1 ? "task" : "tasks"}${overdue ? `, ${overdue} overdue` : ""}`;
-    const lines = rows.slice(0, 10).map((r) => `• ${r.title}${r.dueTime ? ` — ${formatTime(r.dueTime)}` : ""}${r.dueDate! < localDate ? " (overdue)" : ""}`);
-    if (rows.length > 10) lines.push(`…and ${rows.length - 10} more`);
+    const locale: Locale = isLocale(s.locale) ? s.locale : "en";
+    const words = m(locale).email;
+    const title = words.digestTitle(todayCount, overdue);
+    const lines = rows.slice(0, 10).map((r) => `• ${r.title}${r.dueTime ? ` — ${formatTime(r.dueTime)}` : ""}${r.dueDate! < localDate ? words.overdueSuffix : ""}`);
+    if (rows.length > 10) lines.push(words.andMore(rows.length - 10));
     const body = lines.join("\n");
 
     await db.insert(notification).values({ userId: s.userId, kind: "digest", title, body, createdAt: now });
@@ -222,7 +231,7 @@ async function runDigests(db: Db, now: Date, channels: Channels, baseUrl: string
     sent++;
     if (s.emailEnabled) {
       await channels
-        .email({ userId: s.userId, email, title, body, url: `${baseUrl}/today`, tag: `digest-${localDate}` })
+        .email({ userId: s.userId, email, title, body, url: `${baseUrl}/today`, tag: `digest-${localDate}`, locale })
         .catch((e) => console.error("[scheduler] digest email", e));
     }
   }

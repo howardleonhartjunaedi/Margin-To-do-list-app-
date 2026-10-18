@@ -1,0 +1,65 @@
+# Margin with Postgres and Caddy (HTTPS + compression) in front.
+#   cp .env.example .env   # fill in BETTER_AUTH_SECRET, VAPID keys, DOMAIN …
+#   docker compose up -d
+# Scale reminders separately: docker compose --profile workers up -d  (and set SCHEDULER=off)
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: margin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: margin
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U margin -d margin"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      target: app
+      args:
+        BETTER_AUTH_URL: https://${DOMAIN:-localhost}
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://margin:${POSTGRES_PASSWORD}@db:5432/margin
+      BETTER_AUTH_URL: https://${DOMAIN:-localhost}
+    expose:
+      - "3000"
+
+  worker:
+    profiles: ["workers"]
+    build: { context: ., target: worker }
+    restart: unless-stopped
+    depends_on:
+      db: { condition: service_healthy }
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://margin:${POSTGRES_PASSWORD}@db:5432/margin
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  db:
+  caddy-data:
+  caddy-config:

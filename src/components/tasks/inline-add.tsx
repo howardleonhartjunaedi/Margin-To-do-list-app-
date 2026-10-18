@@ -8,10 +8,12 @@ import { Icon } from "@/components/ui/icon";
 import { useProjects, useTaskActions } from "@/lib/data";
 import { parseQuickAdd } from "@/lib/quick-add/parse";
 import { ParsedChips, SmartInput } from "./smart-input";
+import { useT } from "@/i18n/client";
 
 /** "Add task" at the foot of a list. Inherits the list's context (its project or day). */
 export function InlineAdd({ projectId, dueDate }: { projectId?: string | null; dueDate?: string | null }) {
   const { today } = useAppUI();
+  const tr = useT();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const projects = useProjects().data ?? [];
@@ -27,7 +29,7 @@ export function InlineAdd({ projectId, dueDate }: { projectId?: string | null; d
         <span className="grid size-5 place-items-center rounded-full transition-colors duration-(--dur-fast) group-hover:bg-accent group-hover:text-accent-ink">
           <Icon icon={Plus} size="xs" />
         </span>
-        Add task
+        {tr.nav.addTask}
       </button>
     );
   }
@@ -62,8 +64,8 @@ export function InlineAdd({ projectId, dueDate }: { projectId?: string | null; d
         value={text}
         onValueChange={setText}
         parsed={parsed}
-        placeholder="What needs doing?"
-        aria-label="New task"
+        placeholder={tr.quick.inlinePlaceholder}
+        aria-label={tr.quick.newTask}
         onKeyDown={(e) => {
           if (e.key === "Escape") {
             e.preventDefault();

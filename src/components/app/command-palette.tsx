@@ -37,6 +37,7 @@ import { formatDue } from "@/lib/dates";
 import { projectDot } from "@/lib/project-colors";
 import type { SearchHit } from "@/lib/types";
 import { useAppUI } from "./app-ui";
+import { useT } from "@/i18n/client";
 
 interface Item {
   id: string;
@@ -86,6 +87,8 @@ export function CommandPalette() {
   const projects = useProjects().data ?? [];
   const filters = useSavedFilters().data ?? [];
   const projectActions = useProjectActions();
+  const tr = useT();
+  const t = tr.palette;
   const [query, setQuery] = useState("");
   useEffect(() => {
     if (palette.open) setQuery(palette.query);
@@ -106,38 +109,38 @@ export function CommandPalette() {
 
   const nav: Item[] = useMemo(
     () => [
-      { id: "inbox", label: "Inbox", icon: Inbox, hint: "G I", run: go("/inbox") },
-      { id: "today", label: "Today", icon: Sun, hint: "G T", run: go("/today") },
-      { id: "upcoming", label: "Upcoming", icon: CalendarDays, hint: "G U", run: go("/upcoming") },
-      { id: "calendar", label: "Calendar", icon: CalendarDays, hint: "G C", keywords: "month", run: go("/upcoming?layout=calendar") },
-      { id: "timeline", label: "Timeline", icon: GanttChart, keywords: "gantt", run: go("/upcoming?layout=timeline") },
-      { id: "matrix", label: "Eisenhower matrix", icon: Columns3, keywords: "priorities urgent important", run: go("/today?layout=matrix") },
-      ...projects.map((p) => ({ id: `p-${p.id}`, label: p.name, dot: projectDot(p.color), hint: "Project", run: go(`/project/${p.id}`) })),
-      ...filters.map((f) => ({ id: `f-${f.id}`, label: f.name, icon: ListFilter, hint: "Filter", run: go(`/filter/${f.id}`) })),
-      { id: "focus", label: "Focus timer", icon: Timer, hint: "G F", keywords: "pomodoro concentrate", run: go("/focus") },
-      { id: "habits", label: "Habits", icon: Repeat2, hint: "G H", keywords: "routine streak", run: go("/habits") },
-      { id: "stats", label: "Stats", icon: ChartColumn, keywords: "statistics productivity charts", run: go("/stats") },
-      { id: "plan", label: "Plan my day", icon: Sunrise, keywords: "morning planning", run: go("/plan") },
-      { id: "review", label: "Review my day", icon: Moon, keywords: "evening reflection", run: go("/review") },
-      { id: "settings", label: "Settings", icon: Settings, hint: "G S", keywords: "reminders notifications quiet digest time zone", run: go("/settings") },
+      { id: "inbox", label: tr.nav.inbox, icon: Inbox, hint: "G I", run: go("/inbox") },
+      { id: "today", label: tr.nav.today, icon: Sun, hint: "G T", run: go("/today") },
+      { id: "upcoming", label: tr.nav.upcoming, icon: CalendarDays, hint: "G U", run: go("/upcoming") },
+      { id: "calendar", label: t.calendar, icon: CalendarDays, hint: "G C", keywords: t.kw.calendar, run: go("/upcoming?layout=calendar") },
+      { id: "timeline", label: t.timeline, icon: GanttChart, keywords: t.kw.timeline, run: go("/upcoming?layout=timeline") },
+      { id: "matrix", label: t.matrix, icon: Columns3, keywords: t.kw.matrix, run: go("/today?layout=matrix") },
+      ...projects.map((p) => ({ id: `p-${p.id}`, label: p.name, dot: projectDot(p.color), hint: t.project, run: go(`/project/${p.id}`) })),
+      ...filters.map((f) => ({ id: `f-${f.id}`, label: f.name, icon: ListFilter, hint: t.filter, run: go(`/filter/${f.id}`) })),
+      { id: "focus", label: t.focusTimer, icon: Timer, hint: "G F", keywords: t.kw.focus, run: go("/focus") },
+      { id: "habits", label: tr.nav.habits, icon: Repeat2, hint: "G H", keywords: t.kw.habits, run: go("/habits") },
+      { id: "stats", label: tr.nav.stats, icon: ChartColumn, keywords: t.kw.stats, run: go("/stats") },
+      { id: "plan", label: t.planMyDay, icon: Sunrise, keywords: t.kw.plan, run: go("/plan") },
+      { id: "review", label: t.reviewMyDay, icon: Moon, keywords: t.kw.review, run: go("/review") },
+      { id: "settings", label: tr.nav.settings, icon: Settings, hint: "G S", keywords: t.kw.settings, run: go("/settings") },
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [projects, filters],
+    [projects, filters, tr],
   );
 
   const actions: Item[] = [
-    { id: "add", label: "Add a task", icon: Plus, hint: "Q", keywords: "new create", run: run(() => openQuickAdd()) },
+    { id: "add", label: t.addTask, icon: Plus, hint: "Q", keywords: t.kw.add, run: run(() => openQuickAdd()) },
     {
       id: "theme",
-      label: resolvedTheme === "dark" ? "Switch to light theme" : "Switch to dark theme",
+      label: resolvedTheme === "dark" ? t.toLight : t.toDark,
       icon: resolvedTheme === "dark" ? Sun : Moon,
-      keywords: "theme dark light appearance",
+      keywords: t.kw.theme,
       run: run(() => set("theme", resolvedTheme === "dark" ? "light" : "dark")),
     },
-    { id: "shortcuts", label: "Keyboard shortcuts", icon: Keyboard, hint: "?", keywords: "help keys", run: run(() => setShortcutsOpen(true)) },
+    { id: "shortcuts", label: t.shortcuts, icon: Keyboard, hint: "?", keywords: t.kw.shortcuts, run: run(() => setShortcutsOpen(true)) },
     {
       id: "signout",
-      label: "Sign out",
+      label: tr.nav.signOut,
       icon: LogOut,
       run: run(async () => {
         await signOut();
@@ -150,7 +153,7 @@ export function CommandPalette() {
   const match = (i: Item) => !q || `${i.label} ${i.keywords ?? ""} ${i.hint ?? ""}`.toLowerCase().includes(q);
   const navShown = nav.filter(match).slice(0, q ? 6 : 20);
   const actionsShown = actions.filter(match);
-  const projectName = (id: string | null) => (id ? projects.find((p) => p.id === id)?.name : "Inbox");
+  const projectName = (id: string | null) => (id ? projects.find((p) => p.id === id)?.name : tr.nav.inbox);
 
   return (
     <DialogPrimitive.Root open={palette.open} onOpenChange={(o) => !o && closePalette()}>
@@ -160,26 +163,26 @@ export function CommandPalette() {
           aria-describedby={undefined}
           className="fixed inset-x-3 top-[10vh] z-40 mx-auto max-w-xl overflow-hidden rounded-md bg-raised shadow-3 ring-1 ring-line outline-none [--pop-y:-8px] data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in"
         >
-          <DialogPrimitive.Title className="sr-only">Command palette</DialogPrimitive.Title>
-          <Command shouldFilter={false} loop value={selected} onValueChange={setSelected} label="Command palette" className="flex flex-col">
+          <DialogPrimitive.Title className="sr-only">{t.title}</DialogPrimitive.Title>
+          <Command shouldFilter={false} loop value={selected} onValueChange={setSelected} label={t.title} className="flex flex-col">
             <div className="flex items-center gap-3 border-b border-line px-4">
               <Icon icon={Search} className="text-ink-3" />
               <Command.Input
                 value={query}
                 onValueChange={setQuery}
-                placeholder="Search tasks, go to a project, run a command…"
+                placeholder={t.placeholder}
                 className="h-13 flex-1 bg-transparent text-base text-ink outline-none placeholder:text-ink-3"
               />
-              {loading && <span className="skeleton h-1 w-6" aria-label="Searching" />}
+              {loading && <span className="skeleton h-1 w-6" aria-label={t.searching} />}
             </div>
             <Command.List className="max-h-[min(60vh,440px)] overflow-y-auto p-1.5" data-lenis-prevent>
               <Command.Empty className="px-3 py-8 text-center text-sm text-ink-3">
-                {q.length < 2 ? "Type to search your tasks." : loading ? "Searching…" : `Nothing found for “${query.trim()}”.`}
+                {q.length < 2 ? t.typeToSearch : loading ? t.searchingEllipsis : t.nothingFound(query.trim())}
               </Command.Empty>
 
               {/* Found tasks first: Enter opens the best match. */}
               {hits.length > 0 && (
-                <Group heading="Tasks">
+                <Group heading={t.tasks}>
                   {hits.map((h) => (
                     <Command.Item
                       key={h.id}
@@ -191,7 +194,7 @@ export function CommandPalette() {
                       <span className="min-w-0 flex-1">
                         <span className={cn("block truncate", h.completed && "text-ink-3 line-through")}>{h.title}</span>
                         <span className="block truncate text-xs text-ink-3">
-                          {h.snippet ?? [h.parentId ? "Subtask" : projectName(h.projectId), h.dueDate && formatDue(h.dueDate, today)].filter(Boolean).join(" · ")}
+                          {h.snippet ?? [h.parentId ? t.subtask : projectName(h.projectId), h.dueDate && formatDue(h.dueDate, today)].filter(Boolean).join(" · ")}
                         </span>
                       </span>
                     </Command.Item>
@@ -200,18 +203,18 @@ export function CommandPalette() {
               )}
 
               {q && (
-                <Group heading="Create">
+                <Group heading={t.create}>
                   <Row
                     value="create-task"
                     icon={Plus}
-                    label={`Add task “${query.trim()}”`}
+                    label={t.addTaskNamed(query.trim())}
                     hint="↵"
                     onSelect={run(() => openQuickAdd({ text: query.trim() }))}
                   />
                   <Row
                     value="create-project"
                     icon={FolderPlus}
-                    label={`New project “${query.trim()}”`}
+                    label={t.newProjectNamed(query.trim())}
                     onSelect={run(async () => {
                       const id = crypto.randomUUID();
                       router.push(`/project/${id}`);
@@ -222,14 +225,14 @@ export function CommandPalette() {
               )}
 
               {navShown.length > 0 && (
-                <Group heading="Go to">
+                <Group heading={t.goTo}>
                   {navShown.map((i) => (
                     <Row key={i.id} value={i.id} icon={i.icon} dot={i.dot} label={i.label} hint={i.hint} onSelect={i.run} />
                   ))}
                 </Group>
               )}
               {actionsShown.length > 0 && (
-                <Group heading="Actions">
+                <Group heading={t.actions}>
                   {actionsShown.map((i) => (
                     <Row key={i.id} value={i.id} icon={i.icon} label={i.label} hint={i.hint} onSelect={i.run} />
                   ))}
@@ -239,16 +242,16 @@ export function CommandPalette() {
             <div className="flex items-center gap-4 border-t border-line px-4 py-2 text-xs text-ink-3">
               <span className="inline-flex items-center gap-1.5">
                 <Kbd>↑</Kbd>
-                <Kbd>↓</Kbd> move
+                <Kbd>↓</Kbd> {t.move}
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <Kbd>
                   <Icon icon={CornerDownLeft} size="xs" />
                 </Kbd>{" "}
-                open
+                {t.open}
               </span>
               <span className="ml-auto inline-flex items-center gap-1.5">
-                <Kbd>Esc</Kbd> close
+                <Kbd>Esc</Kbd> {t.close}
               </span>
             </div>
           </Command>

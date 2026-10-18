@@ -3,7 +3,7 @@
 import { AnimatePresence, motion, useMotionValue, useSpring } from "motion/react";
 import { useEffect, useState } from "react";
 import { duration, ease, spring } from "@/design/motion";
-import { usePreferences } from "../providers/preferences";
+import { useCursorEnabled } from "./use-cursor-enabled";
 
 /*
  * Custom cursor: a small dot plus a softly trailing ring.
@@ -22,24 +22,7 @@ const NATIVE = 'input, textarea, select, [contenteditable="true"], [data-cursor=
 const CLICKABLE =
   'a[href], button:not(:disabled), [role="button"], [role="checkbox"], [role="switch"], [role="tab"], [role="radio"], [role="menuitem"], [role="option"], label, summary, [data-cursor="pointer"]';
 
-function useFinePointer() {
-  const [fine, setFine] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
-    setFine(mq.matches);
-    const on = () => setFine(mq.matches);
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
-  return fine;
-}
-
-/** True only on a fine pointer, with motion at Full and the setting on. */
-export function useCursorEnabled() {
-  const { prefs, motion } = usePreferences();
-  const fine = useFinePointer();
-  return fine && prefs.cursor && motion === "full";
-}
+export { useCursorEnabled };
 
 export function CustomCursor() {
   const enabled = useCursorEnabled();

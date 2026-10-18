@@ -22,19 +22,19 @@ import { timeAgo } from "@/lib/dates";
 import { pushState } from "@/lib/push";
 import type { Notification } from "@/lib/types";
 import { useAppUI } from "./app-ui";
+import { useT } from "@/i18n/client";
+import { m } from "@/i18n/catalogs";
 
-export const SNOOZE_CHOICES = [
-  { label: "10 minutes", short: "in 10 min", choice: { minutes: 10 } },
-  { label: "1 hour", short: "in 1 hour", choice: { minutes: 60 } },
-  { label: "3 hours", short: "in 3 hours", choice: { minutes: 180 } },
-  { label: "Tomorrow 09:00", short: "until tomorrow 09:00", choice: { tomorrowAt: "09:00" } },
-] as const;
+const SNOOZE = [{ minutes: 10 }, { minutes: 60 }, { minutes: 180 }, { tomorrowAt: "09:00" }] as const;
+
+/** Snooze options with their labels in the language on screen. */
+export const snoozeChoices = () => SNOOZE.map((choice, i) => ({ ...m().notif.snoozeChoices[i], choice }));
 
 async function completeFromNotification(n: Notification, qc: ReturnType<typeof useQueryClient>) {
   if (!n.taskId) return;
   try {
     await api.updateTask(n.taskId, { completed: true });
-    toast(`Completed “${n.title}”.`);
+    toast(m().tasks.completed(n.title));
   } catch (e) {
     toast((e as Error).message);
   }
@@ -68,11 +68,11 @@ export function NotificationWatcher() {
         toast(n.title, {
           description: n.body,
           duration: n.kind === "reminder" ? 15_000 : 8_000,
-          action: n.taskId && n.kind === "reminder" ? { label: "Done", onClick: () => void completeFromNotification(n, qc) } : undefined,
+          action: n.taskId && n.kind === "reminder" ? { label: m().notif.done, onClick: () => void completeFromNotification(n, qc) } : undefined,
           cancel: n.reminderId
-            ? { label: "Snooze", onClick: () => void snoozeReminder(n.reminderId!, { minutes: 10 }, "in 10 min") }
+            ? { label: m().notif.snooze, onClick: () => void snoozeReminder(n.reminderId!, { minutes: 10 }, m().notif.snoozeChoices[0].short) }
             : n.taskId
-              ? { label: "Open", onClick: () => openTask(n.taskId!) }
+              ? { label: m().notif.open, onClick: () => openTask(n.taskId!) }
               : undefined,
         });
       }
@@ -100,7 +100,7 @@ export function NotificationsButton() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label={unread ? `Notifications, ${unread} unread` : "Notifications"} className="relative">
+        <Button variant="ghost" size="icon-sm" aria-label={unread ? m().notif.unread(unread) : m().notif.title} className="relative">
           <Icon icon={Bell} />
           <AnimatePresence>
             {unread > 0 && (
@@ -119,7 +119,7 @@ export function NotificationsButton() {
       </PopoverTrigger>
       <PopoverContent side="right" align="start" className="w-[min(360px,calc(100vw-24px))] p-0">
         <div className="flex items-center justify-between border-b border-line px-4 py-3">
-          <h2 className="font-display text-lg">Notifications</h2>
+          <h2 className="font-display text-lg">{m().notif.title}</h2>
         </div>
         <Inbox items={data?.items} onNavigate={() => setOpen(false)} />
       </PopoverContent>
@@ -130,12 +130,13 @@ export function NotificationsButton() {
 function Inbox({ items, onNavigate }: { items?: Notification[]; onNavigate: () => void }) {
   const qc = useQueryClient();
   const { openTask } = useAppUI();
+  const t = useT().notif;
   if (!items) return <div className="skeleton m-4 h-16" />;
   if (!items.length)
     return (
       <div className="px-4 py-8">
-        <p className="font-display text-lg text-ink">Nothing yet.</p>
-        <p className="mt-1 text-sm text-ink-2">Reminders you set on tasks show up here, and on your devices if you turn on push.</p>
+        <p className="font-display text-lg text-ink">{t.empty}</p>
+        <p className="mt-1 text-sm text-ink-2">{t.emptyBody}</p>
       </div>
     );
   return (
@@ -159,17 +160,17 @@ function Inbox({ items, onNavigate }: { items?: Notification[]; onNavigate: () =
             {n.kind === "reminder" && n.taskId && !n.taskDone && (
               <div className="mt-2 flex gap-1">
                 <Button size="sm" variant="secondary" className="h-7 px-2 text-xs" onClick={() => void completeFromNotification(n, qc)}>
-                  <Icon icon={Check} size="xs" /> Done
+                  <Icon icon={Check} size="xs" /> {t.done}
                 </Button>
                 {n.reminderId && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button size="sm" variant="ghost" className="h-7 px-2 text-xs">
-                        Snooze
+                        {t.snooze}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                      {SNOOZE_CHOICES.map((c) => (
+                      {snoozeChoices().map((c) => (
                         <DropdownMenuItem key={c.label} onSelect={() => void snoozeReminder(n.reminderId!, c.choice, c.short)}>
                           {c.label}
                         </DropdownMenuItem>

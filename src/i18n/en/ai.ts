@@ -1,0 +1,17 @@
+export default {
+  failed: "Couldn’t get suggestions. Try again.",
+  noSteps: "No steps to suggest for this one.",
+  addedSteps: (n: number) => `Added ${n} ${n === 1 ? "step" : "steps"}.`,
+  suggestSteps: "Suggest steps",
+  working: "Working out the steps…",
+  suggested: "Suggested steps — untick any you don’t want.",
+  keep: (title: string) => `Keep: ${title}`,
+  addSteps: (n: number) => `Add ${n} ${n === 1 ? "step" : "steps"}`,
+  dismiss: "Dismiss",
+  sortInbox: "Sort Inbox",
+  sortLede: "Suggestions for where each task belongs. Nothing changes until you apply it.",
+  sorted: "Nothing to suggest — your Inbox looks sorted.",
+  apply: "Apply",
+  skip: "Skip",
+  applyAll: (n: number) => `Apply all ${n}`,
+};

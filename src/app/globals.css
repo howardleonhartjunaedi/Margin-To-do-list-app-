@@ -91,6 +91,86 @@
   --sh-3: 0 1px 0 rgb(255 245 230 / 0.05) inset, 0 22px 48px -12px rgb(0 0 0 / 0.6);
 }
 
+/* ---------- Accent choices (Settings → Display). Fern is the default above. ---------- */
+[data-accent="fern"] {
+  --c-accent: #467235;
+  --c-accent-hover: #3a5f2c;
+  --c-accent-ink: #fff8f2;
+  --c-accent-soft: #e3ebd9;
+  --c-focus: #467235;
+}
+[data-theme="dark"][data-accent="fern"] {
+  --c-accent: #93c07a;
+  --c-accent-hover: #a8cf92;
+  --c-accent-ink: #1b1916;
+  --c-accent-soft: #27321f;
+  --c-focus: #93c07a;
+}
+[data-accent="vermilion"] {
+  --c-accent: #b93a17;
+  --c-accent-hover: #a1310f;
+  --c-accent-ink: #fff8f2;
+  --c-accent-soft: #f6e2d6;
+  --c-focus: #b93a17;
+}
+[data-theme="dark"][data-accent="vermilion"] {
+  --c-accent: #f27b55;
+  --c-accent-hover: #f6916f;
+  --c-accent-ink: #1b1916;
+  --c-accent-soft: #432419;
+  --c-focus: #f27b55;
+}
+[data-accent="plum"] {
+  --c-accent: #7b3f73;
+  --c-accent-hover: #683461;
+  --c-accent-ink: #fff8f2;
+  --c-accent-soft: #efe0ec;
+  --c-focus: #7b3f73;
+}
+[data-theme="dark"][data-accent="plum"] {
+  --c-accent: #d29bcb;
+  --c-accent-hover: #dfb3d9;
+  --c-accent-ink: #1b1916;
+  --c-accent-soft: #3a2337;
+  --c-focus: #d29bcb;
+}
+[data-accent="ink"] {
+  --c-accent: #2e2b27;
+  --c-accent-hover: #1d1b18;
+  --c-accent-ink: #fff8f2;
+  --c-accent-soft: #e7e1d6;
+  --c-focus: #2e2b27;
+}
+[data-theme="dark"][data-accent="ink"] {
+  --c-accent: #e6dfd3;
+  --c-accent-hover: #f3eee6;
+  --c-accent-ink: #1b1916;
+  --c-accent-soft: #34302a;
+  --c-focus: #e6dfd3;
+}
+
+/* ---------- High contrast: neutrals pushed to AAA, firmer lines and controls ---------- */
+[data-theme="light"][data-contrast="high"] {
+  --c-line: #b3a997;
+  --c-line-strong: #7d7466;
+  --c-control: #5c5448;
+  --c-ink: #12100e;
+  --c-ink-2: #2f2b26;
+  --c-ink-3: #433d35;
+}
+[data-theme="dark"][data-contrast="high"] {
+  --c-bg: #12110f;
+  --c-surface: #191714;
+  --c-raised: #211f1b;
+  --c-sunken: #0d0c0b;
+  --c-line: #4f4941;
+  --c-line-strong: #7a7266;
+  --c-control: #a69d8f;
+  --c-ink: #faf7f2;
+  --c-ink-2: #e2dbcf;
+  --c-ink-3: #cfc6b8;
+}
+
 /* ---------- Tailwind theme: map tokens to utilities ---------- */
 @theme {
   --color-*: initial;
@@ -256,13 +336,6 @@
 
 /* ---------- Base ---------- */
 @layer base {
-  /* The italic cut is its own (lazily loaded) family; point display emphasis at it. */
-  .font-display em,
-  .font-display i,
-  em.font-display {
-    font-family: var(--font-newsreader-italic), var(--font-display);
-  }
-
   html {
     background: var(--c-bg);
     color: var(--c-ink);
@@ -283,6 +356,9 @@
     outline: 2px solid var(--c-focus);
     outline-offset: 2px;
     border-radius: var(--radius-sm);
+  }
+  [data-contrast="high"] :focus-visible {
+    outline-width: 3px;
   }
   .font-mono,
   time {

@@ -8,11 +8,13 @@ import { Icon } from "@/components/ui/icon";
 import { EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
 import { cn } from "@/lib/cn";
 import { useProjects, useTaskActions, useTasks } from "@/lib/data";
-import { addDays, daysBetween, formatDue, fromISODate } from "@/lib/dates";
+import { addDays, daysBetween, formatDue, fromISODate, formatDate } from "@/lib/dates";
 import { applyFilter, type Filter } from "@/lib/filters";
 import { projectDot } from "@/lib/project-colors";
 import type { Task, View } from "@/lib/types";
 import { useUrlParam } from "@/lib/view-transition";
+import { useT } from "@/i18n/client";
+import { m } from "@/i18n/catalogs";
 
 const DAYS = 35;
 const ROW = 36;
@@ -27,7 +29,12 @@ type DragMode = "move" | "start" | "end";
  * Drag the bar to move it, drag an edge to change start or due. Keyboard: focus a bar,
  * ←/→ moves it a day, Shift+←/→ changes the due date, Enter opens it.
  */
+/** Rows rendered per group at first; long groups grow on request. */
+const PAGE = 60;
+
 export function TimelineLayout({ projectId, filter }: { projectId?: string; filter: Filter }) {
+  const tr = useT();
+  const tl = tr.layouts;
   const { today, openTask } = useAppUI();
   const actions = useTaskActions();
   const projects = useProjects().data ?? [];
@@ -42,6 +49,7 @@ export function TimelineLayout({ projectId, filter }: { projectId?: string; filt
   const scroller = useRef<HTMLDivElement>(null);
   const [col, setCol] = useState(32);
   const [labelW, setLabelW] = useState(0); // a title column only when there's room for it
+  const [shown, setShown] = useState<Record<string, number>>({});
   useEffect(() => {
     const el = scroller.current;
     if (!el) return;
@@ -69,7 +77,10 @@ export function TimelineLayout({ projectId, filter }: { projectId?: string; filt
     void actions.update(
       t,
       { dueDate: due, startDate: start === due ? null : start },
-      { message: start === due ? `Due ${formatDue(due, today)}.` : `${formatDue(start, today)} → ${formatDue(due, today)}.`, undo: { startDate: t.startDate, dueDate: t.dueDate, dueTime: t.dueTime } },
+      {
+        message: start === due ? tl.due(formatDue(due, today)) : tl.span(formatDue(start, today), formatDue(due, today)),
+        undo: { startDate: t.startDate, dueDate: t.dueDate, dueTime: t.dueTime },
+      },
     );
   };
 
@@ -80,12 +91,12 @@ export function TimelineLayout({ projectId, filter }: { projectId?: string; filt
           {formatDue(from, today)} – {formatDue(to, today)}
         </h2>
         <Button size="sm" variant="ghost" onClick={() => setFrom(addDays(mondayOf(today), -7))}>
-          Today
+          {tl.today}
         </Button>
-        <Button size="icon-sm" variant="ghost" aria-label="Two weeks earlier" onClick={() => setFrom(addDays(from, -14))}>
+        <Button size="icon-sm" variant="ghost" aria-label={tl.earlier} onClick={() => setFrom(addDays(from, -14))}>
           <Icon icon={ChevronLeft} />
         </Button>
-        <Button size="icon-sm" variant="ghost" aria-label="Two weeks later" onClick={() => setFrom(addDays(from, 14))}>
+        <Button size="icon-sm" variant="ghost" aria-label={tl.later} onClick={() => setFrom(addDays(from, 14))}>
           <Icon icon={ChevronRight} />
         </Button>
       </div>
@@ -98,13 +109,13 @@ export function TimelineLayout({ projectId, filter }: { projectId?: string; filt
             {days.map((d) => {
               const dt = fromISODate(d);
               return (
-                <div
-                  key={d}
-                  className={cn("shrink-0 py-1 text-center font-mono text-2xs", d === today ? "text-accent" : "text-ink-3")}
-                  style={{ width: col }}
-                >
-                  {dt.getDate() === 1 || d === from ? <span className="block text-ink-2">{dt.toLocaleString("en-GB", { month: "short" })}</span> : <span className="block">&nbsp;</span>}
-                  <span>{"SMTWTFS"[dt.getDay()]}</span>
+                <div key={d} className={cn("shrink-0 py-1 text-center font-mono text-2xs", d === today ? "text-accent" : "text-ink-3")} style={{ width: col }}>
+                  {dt.getDate() === 1 || d === from ? (
+                    <span className="block text-ink-2">{formatDate(d, { month: "short" })}</span>
+                  ) : (
+                    <span className="block">&nbsp;</span>
+                  )}
+                  <span>{formatDate(d, { weekday: "narrow" })}</span>
                   <span className="block">{dt.getDate()}</span>
                 </div>
               );
@@ -118,9 +129,7 @@ export function TimelineLayout({ projectId, filter }: { projectId?: string; filt
                 <div key={d} className="absolute inset-y-0 bg-sunken/50" style={{ left: i * col, width: col }} />
               ) : null,
             )}
-            {today >= from && today <= to && (
-              <div className="absolute inset-y-0 w-px bg-accent" style={{ left: daysBetween(from, today) * col + col / 2 }} />
-            )}
+            {today >= from && today <= to && <div className="absolute inset-y-0 w-px bg-accent" style={{ left: daysBetween(from, today) * col + col / 2 }} />}
           </div>
 
           {q.isPending ? (
@@ -131,7 +140,11 @@ export function TimelineLayout({ projectId, filter }: { projectId?: string; filt
             </div>
           ) : groups.length === 0 ? (
             <div className="relative px-1">
-              <EmptyState mark="→" title="Nothing dated in these five weeks." body="Give tasks a due date — and a start date for longer work — to see them here." />
+              <EmptyState
+                mark="→"
+                title={tl.nothingDated}
+                body={tl.nothingDatedBody}
+              />
             </div>
           ) : (
             groups.map(([pid, list]) => {
@@ -140,9 +153,9 @@ export function TimelineLayout({ projectId, filter }: { projectId?: string; filt
                 <section key={pid} className="relative">
                   <h3 className="sticky left-0 flex h-8 items-end gap-2 px-1 pb-1 text-xs font-medium text-ink-2" style={{ width: "max-content" }}>
                     <span className={cn("size-2 rounded-full", p ? projectDot(p.color) : "bg-ink-3")} />
-                    {p?.name ?? "Inbox"}
+                    {p?.name ?? tr.nav.inbox}
                   </h3>
-                  {list.map((t) => (
+                  {list.slice(0, shown[pid] ?? PAGE).map((t) => (
                     <div key={t.id} className="relative flex items-center border-b border-line/60" style={{ height: ROW }}>
                       {labelW > 0 && (
                         <button
@@ -156,15 +169,23 @@ export function TimelineLayout({ projectId, filter }: { projectId?: string; filt
                       <Bar task={t} from={from} col={col} offset={labelW} showTitle={labelW === 0} onCommit={commit} onOpen={() => openTask(t.id)} />
                     </div>
                   ))}
+                  {list.length > (shown[pid] ?? PAGE) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="sticky left-0 my-1 text-ink-2"
+                      onClick={() => setShown((m) => ({ ...m, [pid]: (m[pid] ?? PAGE) + PAGE }))}
+                    >
+                      {tr.common.showMore(Math.min(PAGE, list.length - (shown[pid] ?? PAGE)), list.length - (shown[pid] ?? PAGE))}
+                    </Button>
+                  )}
                 </section>
               );
             })
           )}
         </div>
       </div>
-      {!q.isPending && (
-        <p className="mt-3 text-xs text-ink-3">Tasks without a due date don’t appear on the timeline.</p>
-      )}
+      {!q.isPending && <p className="mt-3 text-xs text-ink-3">{tl.noDueHint}</p>}
     </div>
   );
 }
@@ -194,7 +215,7 @@ function Bar({
   let s = start;
   let e = due;
   if (drag) {
-    if (drag.mode === "move") (s = addDays(start, drag.d)), (e = addDays(due, drag.d));
+    if (drag.mode === "move") ((s = addDays(start, drag.d)), (e = addDays(due, drag.d)));
     if (drag.mode === "start") s = addDays(start, Math.min(drag.d, daysBetween(start, due)));
     if (drag.mode === "end") e = addDays(due, Math.max(drag.d, -daysBetween(start, due)));
   }
@@ -221,7 +242,7 @@ function Bar({
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${task.title}: ${s === e ? e : `${s} to ${e}`}. Arrow keys move, Shift+arrows change the due date.`}
+      aria-label={m().layouts.bar(task.title, s === e ? e : m().layouts.range(s, e))}
       onPointerDown={begin("move")}
       onPointerMove={move}
       onPointerUp={end}

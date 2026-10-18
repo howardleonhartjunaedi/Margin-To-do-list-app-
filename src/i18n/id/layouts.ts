@@ -1,0 +1,38 @@
+import type { Messages } from "../catalogs";
+
+const layouts: Messages["layouts"] = {
+  groupBy: "Kelompokkan menurut",
+  groupBoardBy: "Kelompokkan papan menurut",
+  priority: "Prioritas",
+  project: "Proyek",
+  board: "Papan",
+  boardDragHelp: "Untuk memindahkan tugas, tekan Spasi. Gunakan tombol panah untuk memindahkannya antarkolom, Spasi untuk melepas, atau Escape untuk batal.",
+  addTaskTo: (column) => `Tambah tugas ke ${column}`,
+  dropHere: "Lepaskan tugas di sini",
+  quadrants: {
+    do: { title: "Kerjakan sekarang", hint: "Penting dan segera jatuh tempo" },
+    schedule: { title: "Jadwalkan", hint: "Penting, tapi tidak mendesak" },
+    delegate: { title: "Kumpulkan atau serahkan", hint: "Mendesak, tapi tidak penting" },
+    drop: { title: "Lepaskan", hint: "Bukan keduanya — mungkin nanti, mungkin tidak" },
+  },
+  dueSoon: "Segera",
+  notPressing: "Tidak mendesak",
+  important: "Penting",
+  lessImportant: "Kurang penting",
+  today: "Hari ini",
+  prevMonth: "Bulan sebelumnya",
+  nextMonth: "Bulan berikutnya",
+  nothingOnDay: "Tidak ada apa-apa di hari ini.",
+  dayCell: (date, n) => `${date}, ${n} tugas`,
+  addTaskOn: (date) => `Tambah tugas pada ${date}`,
+  earlier: "Dua minggu sebelumnya",
+  later: "Dua minggu berikutnya",
+  nothingDated: "Tidak ada yang bertanggal dalam lima minggu ini.",
+  nothingDatedBody: "Beri tugas tanggal tenggat — dan tanggal mulai untuk pekerjaan yang lebih panjang — agar terlihat di sini.",
+  noDueHint: "Tugas tanpa tanggal tenggat tidak muncul di linimasa.",
+  due: (date) => `Tenggat ${date}.`,
+  span: (from, to) => `${from} → ${to}.`,
+  bar: (title, range) => `${title}: ${range}. Tombol panah memindahkan, Shift+panah mengubah tenggat.`,
+  range: (from, to) => `${from} sampai ${to}`,
+};
+export default layouts;

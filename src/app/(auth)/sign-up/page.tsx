@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
+import { localizedTitle } from "@/i18n/server";
 import { Suspense } from "react";
 import { AuthForm } from "@/components/app/auth-form";
 
-export const metadata: Metadata = { title: "Create account" };
+export const generateMetadata = localizedTitle((t) => t.auth.signUpTitle);
 
 export default function Page() {
   return (

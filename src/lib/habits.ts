@@ -1,4 +1,5 @@
 import { addDays, daysBetween, fromISODate, type ISODate } from "./dates";
+import { m } from "@/i18n/catalogs";
 
 /*
  * Habits are kept per day (target 7/week) or per week (target 1–6/week).
@@ -71,4 +72,4 @@ export const checksThisWeek = (checks: Set<ISODate>, today: ISODate) => {
   return n;
 };
 
-export const describeTarget = (t: number) => (t >= 7 ? "Every day" : `${t}× a week`);
+export const describeTarget = (t: number) => (t >= 7 ? m().habits.everyDay : m().habits.perWeek(t));

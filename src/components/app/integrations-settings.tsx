@@ -17,8 +17,10 @@ import { toast } from "@/components/ui/toast";
 import { api, ApiError, type ImportSummary } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { timeAgo } from "@/lib/dates";
+import { useT } from "@/i18n/client";
+import { m } from "@/i18n/catalogs";
 
-const fail = (e: unknown) => toast(e instanceof ApiError ? e.message : "Something went wrong. Try again.");
+const fail = (e: unknown) => toast(e instanceof ApiError ? e.message : m().integrations.tryAgain);
 
 function Section({ title, lede, children }: { title: string; lede: React.ReactNode; children: React.ReactNode }) {
   return (
@@ -32,6 +34,7 @@ function Section({ title, lede, children }: { title: string; lede: React.ReactNo
 
 function CopyField({ value, label }: { value: string; label: string }) {
   const [copied, setCopied] = useState(false);
+  const t = useT().integrations;
   return (
     <div className="flex items-center gap-2">
       <code aria-label={label} className="min-w-0 flex-1 truncate rounded-sm bg-sunken px-2 py-2 font-mono text-2xs text-ink">
@@ -45,7 +48,7 @@ function CopyField({ value, label }: { value: string; label: string }) {
           setTimeout(() => setCopied(false), 1600);
         }}
       >
-        <Icon icon={copied ? Check : Copy} size="xs" /> {copied ? "Copied" : "Copy"}
+        <Icon icon={copied ? Check : Copy} size="xs" /> {copied ? t.copied : t.copy}
       </Button>
     </div>
   );
@@ -68,24 +71,20 @@ function CalendarFeed() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["ical"], queryFn: api.feed });
   const set = (p: Promise<{ enabled: boolean; url: string | null }>) => p.then((d) => qc.setQueryData(["ical"], d), fail);
+  const t = useT().integrations;
   return (
-    <Section
-      title="Calendar feed"
-      lede="See your dated tasks in Google Calendar, Apple Calendar or Outlook. It’s read-only and refreshes about hourly. Anyone with the link can read it, so keep it to yourself."
-    >
+    <Section title={t.calTitle} lede={t.calLede}>
       <div className="flex items-center gap-3 py-1">
         <Icon icon={CalendarSync} className="text-ink-3" />
-        <span className="flex-1 text-sm text-ink">Private feed</span>
-        <Switch checked={!!q.data?.enabled} onCheckedChange={(on) => set(on ? api.rotateFeed() : api.disableFeed())} aria-label="Calendar feed" />
+        <span className="flex-1 text-sm text-ink">{t.privateFeed}</span>
+        <Switch checked={!!q.data?.enabled} onCheckedChange={(on) => set(on ? api.rotateFeed() : api.disableFeed())} aria-label={t.calendarFeed} />
       </div>
       {q.data?.url && (
         <div className="mt-3 flex flex-col gap-2 pl-7">
-          <CopyField value={q.data.url} label="Calendar feed URL" />
-          <p className="text-xs text-ink-3">
-            Google: Other calendars → From URL. Apple: File → New Calendar Subscription. Outlook: Add calendar → Subscribe from web.
-          </p>
+          <CopyField value={q.data.url} label={t.feedUrl} />
+          <p className="text-xs text-ink-3">{t.calHow}</p>
           <Button size="sm" variant="ghost" className="self-start" onClick={() => set(api.rotateFeed())}>
-            <Icon icon={RefreshCw} size="xs" /> Get a new link (the old one stops working)
+            <Icon icon={RefreshCw} size="xs" /> {t.newLink}
           </Button>
         </div>
       )}
@@ -104,6 +103,7 @@ function ImportExport() {
   const [preview, setPreview] = useState<ImportSummary | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const t = useT().integrations;
 
   const run = async (dryRun: boolean) => {
     setBusy(true);
@@ -112,13 +112,13 @@ function ImportExport() {
       const r = await api.importData({ format, content, dryRun });
       if (dryRun) setPreview(r);
       else {
-        toast(`Imported ${r.tasks + r.subtasks} ${r.tasks + r.subtasks === 1 ? "task" : "tasks"}.`);
+        toast(t.imported(r.tasks + r.subtasks));
         setContent("");
         setPreview(null);
         qc.invalidateQueries();
       }
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Couldn’t read that. Check the format and try again.");
+      setError(e instanceof ApiError ? e.message : t.cantRead);
       setPreview(null);
     } finally {
       setBusy(false);
@@ -126,32 +126,32 @@ function ImportExport() {
   };
 
   return (
-    <Section title="Import and export" lede="Bring tasks in from a list, a spreadsheet or another Margin account. Take everything out whenever you like.">
+    <Section title={t.ioTitle} lede={t.ioLede}>
       <div className="flex flex-wrap gap-2">
         <Button asChild size="sm">
           <a href="/api/export?format=json" download>
-            <Icon icon={Download} size="xs" /> Export everything (JSON)
+            <Icon icon={Download} size="xs" /> {t.exportAll}
           </a>
         </Button>
         <Button asChild size="sm" variant="ghost">
           <a href="/api/export?format=csv" download>
-            <Icon icon={Download} size="xs" /> Tasks as CSV
+            <Icon icon={Download} size="xs" /> {t.exportCsv}
           </a>
         </Button>
       </div>
 
       <div className="mt-6 flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm font-medium text-ink">Import</span>
+          <span className="text-sm font-medium text-ink">{t.import}</span>
           <Segmented<Format>
-            label="Import format"
+            label={t.importFormat}
             size="sm"
             value={format}
             onValueChange={(f) => (setFormat(f), setPreview(null))}
             options={[
-              { value: "text", label: "Plain list" },
-              { value: "csv", label: "CSV" },
-              { value: "json", label: "Margin JSON" },
+              { value: "text", label: t.formats.text },
+              { value: "csv", label: t.formats.csv },
+              { value: "json", label: t.formats.json },
             ]}
           />
           <label className="ml-auto cursor-default text-xs text-ink-2 underline decoration-line-strong underline-offset-4 hover:text-ink">
@@ -162,7 +162,7 @@ function ImportExport() {
               onChange={async (e) => {
                 const file = e.target.files?.[0];
                 if (!file) return;
-                if (file.size > 2_000_000) return setError("That file is over 2 MB. Split it into smaller files.");
+                if (file.size > 2_000_000) return setError(t.tooBig);
                 const ext = file.name.split(".").pop()?.toLowerCase();
                 setFormat(ext === "csv" ? "csv" : ext === "json" ? "json" : "text");
                 setContent(await file.text());
@@ -170,40 +170,34 @@ function ImportExport() {
               }}
             />
             <Icon icon={Upload} size="xs" className="mr-1 inline" />
-            Choose a file
+            {t.chooseFile}
           </label>
         </div>
         <Textarea
           value={content}
           onChange={(e) => (setContent(e.target.value), setPreview(null))}
           className="min-h-32 font-mono text-xs"
-          aria-label="Paste tasks to import"
-          placeholder={
-            format === "text"
-              ? "One task per line, quick-add syntax works:\nPlan the trip #travel p2\n  Book flights tomorrow\n- [x] Renew passport"
-              : format === "csv"
-                ? "title,due_date,priority,project,labels\nPay rent,2026-11-01,p1,Home,bills"
-                : "Paste a Margin JSON export"
-          }
+          aria-label={t.pasteLabel}
+          placeholder={t.placeholders[format]}
         />
         {error && <ErrorState message={error} />}
         {preview && (
           <div className="rounded-md bg-sunken p-3 text-sm text-ink">
             <p>
-              {preview.tasks} {preview.tasks === 1 ? "task" : "tasks"}
-              {preview.subtasks > 0 && `, ${preview.subtasks} subtasks`}
-              {preview.completed > 0 && ` (${preview.completed} already done)`}
-              {preview.newProjects.length > 0 && ` · new projects: ${preview.newProjects.join(", ")}`}
+              {t.previewTasks(preview.tasks)}
+              {preview.subtasks > 0 && t.previewSubtasks(preview.subtasks)}
+              {preview.completed > 0 && t.previewDone(preview.completed)}
+              {preview.newProjects.length > 0 && t.previewProjects(preview.newProjects.join(", "))}
             </p>
-            <p className="mt-1 truncate text-xs text-ink-2">Starts with: {preview.sample.join(" · ")}</p>
+            <p className="mt-1 truncate text-xs text-ink-2">{t.startsWith(preview.sample.join(" · "))}</p>
           </div>
         )}
         <div className="flex gap-2">
           <Button size="sm" variant="ghost" disabled={!content.trim() || busy} onClick={() => void run(true)}>
-            Preview
+            {t.preview}
           </Button>
           <Button size="sm" variant="primary" disabled={!preview || busy} onClick={() => void run(false)}>
-            {busy ? "Importing…" : preview ? `Import ${preview.tasks + preview.subtasks} tasks` : "Import"}
+            {busy ? t.importing : preview ? t.importN(preview.tasks + preview.subtasks) : t.import}
           </Button>
         </div>
       </div>
@@ -218,16 +212,17 @@ function ApiTokens() {
   const q = useQuery({ queryKey: ["tokens"], queryFn: api.tokens });
   const [name, setName] = useState("");
   const [fresh, setFresh] = useState<string | null>(null);
+  const tr = useT().integrations;
   return (
     <Section
-      title="API"
+      title={tr.apiTitle}
       lede={
         <>
-          Personal tokens let scripts and other apps use your account through the REST API.{" "}
-          <Link href="/developers" className="text-accent underline decoration-1 underline-offset-4">
-            Read the API guide
-          </Link>
-          .
+          {tr.apiLede(
+            <Link key="guide" href="/developers" className="text-accent underline decoration-1 underline-offset-4">
+              {tr.apiGuide}
+            </Link>,
+          )}
         </>
       }
     >
@@ -246,15 +241,15 @@ function ApiTokens() {
           }
         }}
       >
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="What it’s for — e.g. “Shortcuts”" aria-label="Token name" className="min-w-0 flex-1" />
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr.tokenPlaceholder} aria-label={tr.tokenName} className="min-w-0 flex-1" />
         <Button type="submit" disabled={!name.trim()}>
-          <Icon icon={KeyRound} /> Create token
+          <Icon icon={KeyRound} /> {tr.createToken}
         </Button>
       </form>
       {fresh && (
         <div className="mt-4 flex flex-col gap-2 rounded-md bg-warning-soft p-3">
-          <p className="text-sm text-ink">Copy it now — you won’t see it again.</p>
-          <CopyField value={fresh} label="New API token" />
+          <p className="text-sm text-ink">{tr.copyNow}</p>
+          <CopyField value={fresh} label={tr.newToken} />
         </div>
       )}
       <ul className="mt-4 divide-y divide-line border-y border-line">
@@ -263,7 +258,7 @@ function ApiTokens() {
             <div className="min-w-0 flex-1">
               <p className="truncate text-ink">{t.name}</p>
               <p className="font-mono text-2xs text-ink-3">
-                {t.prefix}… · {t.lastUsedAt ? `used ${timeAgo(t.lastUsedAt)}` : "never used"}
+                {t.prefix}… · {t.lastUsedAt ? tr.used(timeAgo(t.lastUsedAt)) : tr.neverUsed}
               </p>
             </div>
             <Button
@@ -273,15 +268,15 @@ function ApiTokens() {
               onClick={() =>
                 void api.revokeToken(t.id).then(() => {
                   qc.invalidateQueries({ queryKey: ["tokens"] });
-                  toast(`Revoked “${t.name}”. Anything using it stops working now.`);
+                  toast(tr.revoked(t.name));
                 }, fail)
               }
             >
-              Revoke
+              {tr.revoke}
             </Button>
           </li>
         ))}
-        {q.data?.length === 0 && <li className="py-3 text-sm text-ink-3">No tokens yet.</li>}
+        {q.data?.length === 0 && <li className="py-3 text-sm text-ink-3">{tr.noTokens}</li>}
       </ul>
     </Section>
   );
@@ -289,13 +284,7 @@ function ApiTokens() {
 
 /* ------------------------------ Webhooks ------------------------------ */
 
-const EVENTS = [
-  ["task.created", "Task added"],
-  ["task.updated", "Task changed"],
-  ["task.completed", "Task completed"],
-  ["task.deleted", "Task deleted"],
-  ["comment.created", "New comment"],
-] as const;
+const EVENTS = ["task.created", "task.updated", "task.completed", "task.deleted", "comment.created"] as const;
 
 function Webhooks() {
   const qc = useQueryClient();
@@ -304,12 +293,10 @@ function Webhooks() {
   const [events, setEvents] = useState<string[]>(["task.created", "task.completed"]);
   const [secret, setSecret] = useState<string | null>(null);
   const refresh = () => qc.invalidateQueries({ queryKey: ["webhooks"] });
+  const t = useT().integrations;
 
   return (
-    <Section
-      title="Webhooks"
-      lede="Margin POSTs a signed JSON payload to your URL when things change. Failed deliveries retry for about half an hour; an endpoint that keeps failing is switched off."
-    >
+    <Section title={t.hooksTitle} lede={t.hooksLede}>
       <form
         className="flex flex-col gap-3"
         onSubmit={async (e) => {
@@ -324,24 +311,24 @@ function Webhooks() {
           }
         }}
       >
-        <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com/margin-hook" aria-label="Webhook URL" inputMode="url" />
+        <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com/margin-hook" aria-label={t.hookUrl} inputMode="url" />
         <fieldset className="flex flex-wrap gap-x-5 gap-y-2">
-          <legend className="sr-only">Events</legend>
-          {EVENTS.map(([id, labelText]) => (
+          <legend className="sr-only">{t.eventsLegend}</legend>
+          {EVENTS.map((id) => (
             <label key={id} className="flex items-center gap-2 text-sm text-ink">
               <Checkbox checked={events.includes(id)} onCheckedChange={(v) => setEvents((es) => (v ? [...es, id] : es.filter((x) => x !== id)))} />
-              {labelText}
+              {t.events[id]}
             </label>
           ))}
         </fieldset>
         <Button type="submit" className="self-start" disabled={!url.trim() || !events.length}>
-          <Icon icon={Webhook} /> Add webhook
+          <Icon icon={Webhook} /> {t.addHook}
         </Button>
       </form>
       {secret && (
         <div className="mt-4 flex flex-col gap-2 rounded-md bg-warning-soft p-3">
-          <p className="text-sm text-ink">Signing secret — copy it now. Verify each request’s X-Margin-Signature with it.</p>
-          <CopyField value={secret} label="Webhook signing secret" />
+          <p className="text-sm text-ink">{t.secretNote}</p>
+          <CopyField value={secret} label={t.secretLabel} />
         </div>
       )}
       <ul className="mt-4 divide-y divide-line border-y border-line">
@@ -351,27 +338,27 @@ function Webhooks() {
               <p className="truncate font-mono text-xs text-ink">{w.url}</p>
               <p className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-ink-3">
                 <Badge tone={w.active ? (w.failureCount ? "warning" : "success") : "danger"}>
-                  {w.active ? (w.failureCount ? `${w.failureCount} recent failures` : "Active") : "Switched off"}
+                  {w.active ? (w.failureCount ? t.failures(w.failureCount) : t.active) : t.switchedOff}
                 </Badge>
                 {w.events.join(", ")}
-                {w.lastDeliveryAt && <span>· last {w.lastStatus ?? "error"} {timeAgo(w.lastDeliveryAt)}</span>}
+                {w.lastDeliveryAt && <span>{t.last(String(w.lastStatus ?? t.error), timeAgo(w.lastDeliveryAt))}</span>}
               </p>
             </div>
             <Switch
               checked={w.active}
-              aria-label={w.active ? "Switch off" : "Switch on"}
+              aria-label={w.active ? t.switchOff : t.switchOn}
               onCheckedChange={(active) => void api.updateWebhook(w.id, { active }).then(refresh, fail)}
             />
-            <Button size="sm" variant="ghost" onClick={() => void api.testWebhook(w.id).then(() => toast("Ping queued — it’ll arrive within a few seconds."), fail)}>
-              <Icon icon={Send} size="xs" /> Test
+            <Button size="sm" variant="ghost" onClick={() => void api.testWebhook(w.id).then(() => toast(t.pingQueued), fail)}>
+              <Icon icon={Send} size="xs" /> {t.test}
             </Button>
             <Deliveries id={w.id} />
-            <Button size="icon-sm" variant="ghost" aria-label="Delete webhook" onClick={() => void api.deleteWebhook(w.id).then(refresh, fail)}>
+            <Button size="icon-sm" variant="ghost" aria-label={t.deleteHook} onClick={() => void api.deleteWebhook(w.id).then(refresh, fail)}>
               <Icon icon={Trash2} size="xs" />
             </Button>
           </li>
         ))}
-        {q.data?.length === 0 && <li className="py-3 text-sm text-ink-3">No webhooks yet.</li>}
+        {q.data?.length === 0 && <li className="py-3 text-sm text-ink-3">{t.noHooks}</li>}
       </ul>
     </Section>
   );
@@ -380,11 +367,12 @@ function Webhooks() {
 function Deliveries({ id }: { id: string }) {
   const [open, setOpen] = useState(false);
   const q = useQuery({ queryKey: ["deliveries", id], queryFn: () => api.deliveries(id), enabled: open, refetchInterval: open ? 5000 : false });
+  const t = useT().integrations;
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button size="sm" variant="ghost">
-          Log
+          {t.log}
         </Button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-80 p-2">
@@ -397,7 +385,7 @@ function Deliveries({ id }: { id: string }) {
               <span className="ml-auto font-mono text-2xs text-ink-3">{timeAgo(d.createdAt)}</span>
             </li>
           ))}
-          {q.data?.length === 0 && <li className="p-2 text-xs text-ink-3">Nothing sent yet.</li>}
+          {q.data?.length === 0 && <li className="p-2 text-xs text-ink-3">{t.nothingSent}</li>}
         </ul>
       </PopoverContent>
     </Popover>

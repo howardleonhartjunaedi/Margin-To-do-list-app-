@@ -1,3 +1,4 @@
+import { m as messages } from "@/i18n/catalogs";
 /*
  * Focus timer as a pure state machine. Times are epoch ms; the clock is passed in,
  * so it survives reloads (state is persisted) and is testable without fake timers.
@@ -70,7 +71,5 @@ export function clock(ms: number) {
 
 /** "25 min", "1 h 30 min" */
 export function minutesLabel(min: number) {
-  const h = Math.floor(min / 60);
-  const m = Math.round(min % 60);
-  return h ? (m ? `${h} h ${m} min` : `${h} h`) : `${m} min`;
+  return messages().time.duration(Math.floor(min / 60), Math.round(min % 60));
 }

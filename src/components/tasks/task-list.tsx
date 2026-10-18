@@ -204,6 +204,16 @@ export function TaskList({ view, groups, empty, cleared, footer }: TaskListProps
     );
   }
 
+  // Many rows across several groups (Upcoming, a long Today): one virtualized list of headers and rows.
+  if (total > VIRTUALIZE_AT) {
+    return (
+      <div ref={containerRef}>
+        <VirtualGroups groups={visibleGroups} render={rowProps} onRowKey={onRowKey} />
+        {footer}
+      </div>
+    );
+  }
+
   return (
     <div ref={containerRef} className="flex flex-col gap-8">
       {visibleGroups.map((g) => (
@@ -349,6 +359,60 @@ function ManualRow({
     >
       <TaskItem {...render(task)} dragControls={controls} />
     </Reorder.Item>
+  );
+}
+
+type Flat = { kind: "header"; group: TaskGroup } | { kind: "row"; task: Task; group: TaskGroup };
+
+/** Grouped and long: group headers and rows share one virtualizer, so only what's on screen is in the DOM. */
+function VirtualGroups({ groups, render, onRowKey }: { groups: TaskGroup[]; render: (t: Task, g: TaskGroup) => React.ComponentProps<typeof TaskItem>; onRowKey: RowKey }) {
+  const items = useMemo<Flat[]>(
+    () => groups.flatMap((g) => [...(g.title ? [{ kind: "header" as const, group: g }] : []), ...g.tasks.map((task) => ({ kind: "row" as const, task, group: g }))]),
+    [groups],
+  );
+  const listRef = useRef<HTMLDivElement>(null);
+  const [offset, setOffset] = useState(0);
+  useEffect(() => setOffset(listRef.current?.offsetTop ?? 0), []);
+  const v = useWindowVirtualizer({
+    count: items.length,
+    estimateSize: (i) => (items[i].kind === "header" ? 72 : 64),
+    overscan: 8,
+    scrollMargin: offset,
+    getItemKey: (i) => (items[i].kind === "header" ? `h:${items[i].group.key}` : items[i].task.id),
+  });
+  return (
+    <div ref={listRef} className="relative" style={{ height: v.getTotalSize() }}>
+      {v.getVirtualItems().map((vi) => {
+        const it = items[vi.index];
+        const style = { transform: `translateY(${vi.start - v.options.scrollMargin}px)` };
+        if (it.kind === "header") {
+          const g = it.group;
+          return (
+            <div key={vi.key} data-index={vi.index} ref={v.measureElement} className={cn("absolute inset-x-0 top-0", vi.index > 0 && "pt-8")} style={style}>
+              <header className="-mx-2 flex items-baseline gap-3 border-b border-line bg-bg px-2 pt-2 pb-2">
+                <h2 className={cn("font-display text-lg", g.tone === "danger" ? "text-danger" : "text-ink")}>{g.title}</h2>
+                {g.sub && <span className="font-mono text-2xs text-ink-3">{g.sub}</span>}
+                {g.action && <div className="ml-auto">{g.action}</div>}
+              </header>
+            </div>
+          );
+        }
+        return (
+          <div
+            key={vi.key}
+            data-index={vi.index}
+            ref={v.measureElement}
+            data-task-row
+            tabIndex={0}
+            onKeyDown={(e) => onRowKey(e, it.task)}
+            className="group/row absolute inset-x-0 top-0 outline-offset-[-2px]"
+            style={style}
+          >
+            <TaskItem {...render(it.task, it.group)} />
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

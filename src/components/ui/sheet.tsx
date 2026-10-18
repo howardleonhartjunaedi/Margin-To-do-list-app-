@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "./button";
 import { Icon } from "./icon";
+import { m } from "@/i18n/catalogs";
 
 interface SheetProps {
   open: boolean;
@@ -47,7 +48,7 @@ export function Sheet({ open, onOpenChange, side = "right", title, className, ch
 export function SheetClose({ className }: { className?: string }) {
   return (
     <DialogPrimitive.Close asChild>
-      <Button variant="ghost" size="icon-sm" aria-label="Close" className={className}>
+      <Button variant="ghost" size="icon-sm" aria-label={m().common.close} className={className}>
         <Icon icon={X} />
       </Button>
     </DialogPrimitive.Close>

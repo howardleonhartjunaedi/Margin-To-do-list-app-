@@ -1,14 +1,14 @@
 "use client";
 
 import { ArrowDown, ArrowRight } from "lucide-react";
-import { motion } from "motion/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { usePreferences } from "@/components/providers/preferences";
 import { Button } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import { duration, ease } from "@/design/motion";
+import { cn } from "@/lib/cn";
+import type { Messages } from "@/i18n/catalogs";
 import type { SceneInputs } from "./hero-scene";
 
 // The 3D scene is its own chunk, fetched only when the device should run it.
@@ -28,7 +28,7 @@ function canRun3D() {
   }
 }
 
-export function Hero() {
+export function Hero({ t }: { t: Messages["landing"] }) {
   const { motion: level } = usePreferences();
   const [load3D, setLoad3D] = useState(false);
   const [ready, setReady] = useState(false);
@@ -77,23 +77,26 @@ export function Hero() {
     <section ref={section} aria-labelledby="hero-h" className="relative mx-auto grid max-w-6xl items-center overflow-x-clip gap-10 px-4 pt-12 pb-20 sm:px-8 lg:min-h-[calc(100dvh-4rem)] lg:grid-cols-[1.05fr_1fr] lg:pt-0">
       <div>
         <h1 id="hero-h" className="font-display text-4xl text-balance text-ink sm:text-5xl">
-          Write it down. <span className="block">
-            <em className="whitespace-nowrap text-accent">Get on</em> with your day.
+          {t.hero.line1}{" "}
+          <span className="block">
+            <em className="whitespace-nowrap text-accent">{t.hero.em}</em>
+            {t.hero.line2}
           </span>
         </h1>
         <p className="mt-6 max-w-[44ch] text-lg text-ink-2">
-          Type a task the way you’d say it — <span className="font-mono text-base text-ink">dentist fri 3pm</span> — and Margin files it under the right day,
-          reminds you at the right moment, and keeps everything else quiet.
+          {t.heroBody[0]}
+          <span className="font-mono text-base text-ink">{t.heroExample}</span>
+          {t.heroBody[1]}
         </p>
         <div className="mt-9 flex flex-wrap items-center gap-3">
           <Button asChild variant="primary" size="lg" magnetic>
             <Link href="/sign-up">
-              Start a list — it’s free <Icon icon={ArrowRight} />
+              {t.start} <Icon icon={ArrowRight} />
             </Link>
           </Button>
           <Button asChild variant="ghost" size="lg">
             <a href="#try">
-              Try it right here <Icon icon={ArrowDown} />
+              {t.tryHere} <Icon icon={ArrowDown} />
             </a>
           </Button>
         </div>
@@ -101,26 +104,19 @@ export function Hero() {
 
       <div className="relative aspect-[5/4] w-full max-lg:max-w-xl" aria-hidden>
         {/* Poster: the same composition, drawn in SVG. It's what you see first, and what stays on low-power devices. */}
-        <motion.div
-          className="absolute inset-0"
-          initial={false}
-          animate={{ opacity: ready ? 0 : 1 }}
-          transition={{ duration: duration.slow, ease: ease.enter }}
-        >
+        {/* Plain CSS transitions here: the hero stays free of the animation library, which loads later. */}
+        <div className={cn("absolute inset-0 transition-opacity duration-(--dur-slow) ease-(--ease-enter)", ready && "opacity-0")}>
           <Poster />
-        </motion.div>
+        </div>
         {load3D && (
           // The canvas bleeds past the layout box so tilting never cuts the scene at an edge;
           // the camera sits further back to keep the same apparent size.
-          <motion.div
-            className="pointer-events-none absolute -inset-[15%]"
+          <div
+            className={cn("pointer-events-none absolute -inset-[15%] transition-opacity duration-(--dur-page) ease-(--ease-enter)", ready ? "opacity-100" : "opacity-0")}
             data-cursor="native"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: ready ? 1 : 0 }}
-            transition={{ duration: duration.page, ease: ease.enter }}
           >
             <HeroScene inputs={inputs} onReady={() => setReady(true)} />
-          </motion.div>
+          </div>
         )}
       </div>
     </section>

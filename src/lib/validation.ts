@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { LOCALES } from "@/i18n/locales";
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 const hhmm = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use HH:MM");
@@ -103,6 +104,8 @@ export const settingsSchema = z
     emailEnabled: z.boolean(),
     digestEnabled: z.boolean(),
     digestTime: hhmm,
+    locale: z.enum(LOCALES).nullable(),
+    aiEnabled: z.boolean(),
   })
   .partial();
 

@@ -16,7 +16,9 @@ import * as schema from "./schema";
  * Migrations in ./drizzle run once per process before the first query.
  */
 
-const migrationsFolder = path.join(process.cwd(), "drizzle");
+// Runtime paths: the turbopackIgnore hints stop file tracing from copying the project (and the local
+// database) into the server bundle. The Docker image copies ./drizzle in explicitly.
+const migrationsFolder = path.join(/* turbopackIgnore: true */ process.cwd(), "drizzle");
 
 function create() {
   const url = process.env.DATABASE_URL;
@@ -27,7 +29,7 @@ function create() {
   }
   // PGLITE_DIR lets a second local server (e.g. a production build under test) use its own
   // folder: PGlite allows only one process per data directory.
-  const dir = path.resolve(process.env.PGLITE_DIR ?? path.join(".data", "pglite"));
+  const dir = path.resolve(/* turbopackIgnore: true */ process.cwd(), process.env.PGLITE_DIR ?? [".data", "pglite"].join(path.sep)); // (built at runtime so the tracer leaves it alone)
   mkdirSync(path.dirname(dir), { recursive: true }); // PGlite only creates the last segment
   const client = new PGlite(dir);
   const db = drizzlePglite({ client, schema, casing: "snake_case" });

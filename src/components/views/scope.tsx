@@ -15,6 +15,7 @@ import { ActiveFilters, FilterButton, useFilterParam } from "./filter-bar";
 import { LayoutBody, LayoutSwitcher, LAYOUTS, useLayout, type Layout } from "./layout-switcher";
 import { Matrix } from "./matrix";
 import { TimelineLayout } from "./timeline";
+import { useT } from "@/i18n/client";
 
 export interface ScopeProps {
   title: React.ReactNode;
@@ -55,21 +56,22 @@ export function ScopeView(p: ScopeProps) {
     { when: () => !!root.current && root.current.getClientRects().length > 0 },
   );
 
+  const tf = useT().filter;
   let body: React.ReactNode;
   if (layout === "calendar") body = <CalendarLayout projectId={p.projectId} filter={filter} />;
   else if (layout === "timeline") body = <TimelineLayout projectId={p.projectId} filter={filter} />;
   else if (q.isPending) body = <TaskRowSkeleton rows={5} />;
   else if (q.isError)
-    body = <ErrorState message={`${q.error.message} Your tasks are safe — we just can’t reach them right now.`} onRetry={() => q.refetch()} />;
+    body = <ErrorState message={tf.cantReach(q.error.message)} onRetry={() => q.refetch()} />;
   else if (!isEmptyFilter(filter) && tasks.length === 0 && q.data.length > 0)
     body = (
       <EmptyState
         mark="∅"
-        title="Nothing matches this filter."
-        body={`${q.data.length} ${q.data.length === 1 ? "task is" : "tasks are"} hidden by it.`}
+        title={tf.nothingMatches}
+        body={tf.hiddenBy(q.data.length)}
         action={
           <Button size="sm" onClick={() => setFilter(EMPTY_FILTER)}>
-            Clear the filter
+            {tf.clearFilter}
           </Button>
         }
       />

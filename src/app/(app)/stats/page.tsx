@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
+import { localizedTitle } from "@/i18n/server";
 import { StatsView } from "@/components/stats/stats-view";
 
-export const metadata: Metadata = { title: "Stats" };
+export const generateMetadata = localizedTitle((t) => t.nav.stats);
 
 export default function Page() {
   return <StatsView />;

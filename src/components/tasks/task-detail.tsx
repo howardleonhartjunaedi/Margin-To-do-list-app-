@@ -22,10 +22,12 @@ import type { Priority, Task } from "@/lib/types";
 import { DateMenu } from "./reschedule";
 import { RemindersSection } from "./reminders-section";
 import { Comments } from "@/components/sharing/comments";
+import { SuggestSteps } from "@/components/ai/ai-suggestions";
 import { useMembers } from "@/components/sharing/share-dialog";
 import { Badge } from "@/components/ui/badge";
 import { getCurrentUserId } from "@/lib/data";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useT } from "@/i18n/client";
 
 const REPEAT_OPTIONS = [
   "FREQ=DAILY",
@@ -44,8 +46,9 @@ export function TaskDetailSheet() {
     if (openTaskId) setShownId(openTaskId);
   }, [openTaskId]);
 
+  const t = useT().detail;
   return (
-    <Sheet open={!!openTaskId} onOpenChange={(o) => !o && closeTask()} title="Task details">
+    <Sheet open={!!openTaskId} onOpenChange={(o) => !o && closeTask()} title={t.title}>
       {shownId && <TaskDetail id={shownId} />}
     </Sheet>
   );
@@ -58,10 +61,12 @@ function TaskDetail({ id }: { id: string }) {
   const router = useRouter();
   const projects = useProjects().data ?? [];
   const actions = useTaskActions();
+  const tr = useT();
+  const t = tr.detail;
 
   if (q.isPending) {
     return (
-      <div className="flex flex-col gap-4 p-6" role="status" aria-label="Loading task">
+      <div className="flex flex-col gap-4 p-6" role="status" aria-label={t.loading}>
         <Skeleton className="h-6 w-3/4" />
         <Skeleton className="h-4 w-1/3" />
         <Skeleton className="mt-6 h-24 w-full" />
@@ -72,8 +77,8 @@ function TaskDetail({ id }: { id: string }) {
     return (
       <div className="flex flex-col items-start gap-3 p-6">
         <SheetClose className="-ml-2" />
-        <p className="font-display text-xl">That task doesn’t exist any more.</p>
-        <p className="text-sm text-ink-2">It may have been deleted on another device.</p>
+        <p className="font-display text-xl">{t.gone}</p>
+        <p className="text-sm text-ink-2">{t.goneSub}</p>
       </div>
     );
   }
@@ -89,8 +94,8 @@ function TaskDetail({ id }: { id: string }) {
     <div className="flex min-h-0 flex-1 flex-col">
       <header className="flex h-14 shrink-0 items-center gap-2 border-b border-line px-4">
         <SheetClose className="-ml-2" />
-        <span className="truncate text-sm text-ink-2">{project?.name ?? "Inbox"}</span>
-        {readOnly && <Badge tone="outline">{role === "viewer" ? "View only" : "Can comment"}</Badge>}
+        <span className="truncate text-sm text-ink-2">{project?.name ?? tr.nav.inbox}</span>
+        {readOnly && <Badge tone="outline">{role === "viewer" ? t.viewOnly : t.canComment}</Badge>}
         <Button
           variant="ghost"
           size="sm"
@@ -101,7 +106,7 @@ function TaskDetail({ id }: { id: string }) {
             router.push("/focus");
           }}
         >
-          <Icon icon={Timer} /> Focus
+          <Icon icon={Timer} /> {t.focus}
         </Button>
         {!readOnly && (
           <Button
@@ -113,7 +118,7 @@ function TaskDetail({ id }: { id: string }) {
               void actions.remove(task);
             }}
           >
-            <Icon icon={Trash2} /> Delete
+            <Icon icon={Trash2} /> {t.delete}
           </Button>
         )}
       </header>
@@ -126,19 +131,19 @@ function TaskDetail({ id }: { id: string }) {
               checked={done}
               priority={task.priority}
               onCheckedChange={() => void (done ? actions.uncomplete(task) : actions.complete(task))}
-              aria-label={done ? "Mark not done" : "Complete task"}
+              aria-label={done ? t.markNotDone : t.completeTask}
             />
           </div>
           <EditableTitle key={task.id} task={task} onSave={(title) => actions.update(task, { title })} />
         </div>
 
         <dl className="mt-6 grid grid-cols-[6.5rem_1fr] items-center gap-x-3 gap-y-3 text-sm">
-          <dt className="text-ink-2">Date</dt>
+          <dt className="text-ink-2">{t.date}</dt>
           <dd className="flex flex-wrap items-center gap-2">
             <Popover>
               <PopoverTrigger asChild>
                 <Button size="sm" className={cn(task.dueDate && task.dueDate < today && "text-danger")}>
-                  {task.dueDate ? formatDue(task.dueDate, today) : "No date"}
+                  {task.dueDate ? formatDue(task.dueDate, today) : t.noDate}
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-64 p-1.5">
@@ -148,7 +153,7 @@ function TaskDetail({ id }: { id: string }) {
             {task.dueDate && (
               <input
                 type="time"
-                aria-label="Time"
+                aria-label={t.time}
                 data-cursor="native"
                 defaultValue={task.dueTime ?? ""}
                 key={`${task.id}-${task.dueTime}`}
@@ -161,19 +166,19 @@ function TaskDetail({ id }: { id: string }) {
             )}
           </dd>
 
-          <dt className="text-ink-2">Priority</dt>
+          <dt className="text-ink-2">{t.priority}</dt>
           <dd>
             <Segmented<"1" | "2" | "3" | "4">
-              label="Priority"
+              label={t.priority}
               size="sm"
               value={String(task.priority) as "1"}
               onValueChange={(v) => void actions.update(task, { priority: Number(v) as Priority })}
-              options={(["1", "2", "3", "4"] as const).map((p) => ({ value: p, label: `P${p}`, title: ["Urgent", "High", "Normal", "Someday"][Number(p) - 1] }))}
+              options={(["1", "2", "3", "4"] as const).map((p) => ({ value: p, label: `P${p}`, title: tr.item.priorityNames[Number(p) - 1] }))}
             />
           </dd>
 
           <dt className="text-ink-2">
-            <label htmlFor="task-project">Project</label>
+            <label htmlFor="task-project">{t.project}</label>
           </dt>
           <dd>
             <select
@@ -182,7 +187,7 @@ function TaskDetail({ id }: { id: string }) {
               onChange={(e) => void actions.update(task, { projectId: e.target.value || null })}
               className="h-8 max-w-full rounded-md bg-raised px-2 text-sm text-ink ring-1 ring-control ring-inset"
             >
-              {(task.createdBy === getCurrentUserId() || !task.projectId) && <option value="">Inbox</option>}
+              {(task.createdBy === getCurrentUserId() || !task.projectId) && <option value="">{tr.nav.inbox}</option>}
               {(writableProjects.some((p) => p.id === task.projectId) ? writableProjects : [...writableProjects, ...(project ? [project] : [])]).map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name}
@@ -194,14 +199,14 @@ function TaskDetail({ id }: { id: string }) {
           {project && project.memberCount > 1 && <AssigneeRow task={task} onChange={(assigneeId) => void actions.update(task, { assigneeId })} />}
 
           <dt className="text-ink-2">
-            <label htmlFor="task-labels">Labels</label>
+            <label htmlFor="task-labels">{t.labels}</label>
           </dt>
           <dd>
             <input
               id="task-labels"
               key={`${task.id}-${task.labels.join()}`}
               defaultValue={task.labels.join(", ")}
-              placeholder="errands, calls"
+              placeholder={t.labelsPlaceholder}
               onBlur={(e) => {
                 const labels = e.target.value
                   .split(",")
@@ -214,7 +219,7 @@ function TaskDetail({ id }: { id: string }) {
           </dd>
 
           <dt className="text-ink-2">
-            <label htmlFor="task-estimate">Estimate</label>
+            <label htmlFor="task-estimate">{t.estimate}</label>
           </dt>
           <dd className="flex flex-wrap items-center gap-3">
             <select
@@ -223,7 +228,7 @@ function TaskDetail({ id }: { id: string }) {
               onChange={(e) => void actions.update(task, { estimateMinutes: e.target.value ? Number(e.target.value) : null })}
               className="h-8 rounded-md bg-raised px-2 text-sm text-ink ring-1 ring-control ring-inset"
             >
-              <option value="">None</option>
+              <option value="">{t.none}</option>
               {[...new Set([15, 30, 45, 60, 90, 120, 180, 240, ...(task.estimateMinutes ? [task.estimateMinutes] : [])])]
                 .sort((a, b) => a - b)
                 .map((m) => (
@@ -234,13 +239,13 @@ function TaskDetail({ id }: { id: string }) {
             </select>
             {focus.minutes > 0 && (
               <span className="font-mono text-2xs text-ink-3">
-                {minutesLabel(focus.minutes)} focused · {focus.sessions} {focus.sessions === 1 ? "session" : "sessions"}
+                {t.focused(minutesLabel(focus.minutes), focus.sessions)}
               </span>
             )}
           </dd>
 
           <dt className="text-ink-2">
-            <label htmlFor="task-repeat">Repeats</label>
+            <label htmlFor="task-repeat">{t.repeats}</label>
           </dt>
           <dd className="flex items-center gap-2">
             <select
@@ -253,7 +258,7 @@ function TaskDetail({ id }: { id: string }) {
               }}
               className="h-8 max-w-full rounded-md bg-raised px-2 text-sm text-ink ring-1 ring-control ring-inset"
             >
-              <option value="">Doesn’t repeat</option>
+              <option value="">{t.noRepeat}</option>
               {REPEAT_OPTIONS.map((r) => (
                 <option key={r} value={r}>
                   {describeRRule(r)}
@@ -283,6 +288,7 @@ function TaskDetail({ id }: { id: string }) {
 
 function EditableTitle({ task, onSave }: { task: Task; onSave: (t: string) => unknown }) {
   const [value, setValue] = useState(task.title);
+  const t = useT().detail;
   const commit = () => {
     const v = value.trim();
     if (!v) return setValue(task.title); // never save an empty title
@@ -290,7 +296,7 @@ function EditableTitle({ task, onSave }: { task: Task; onSave: (t: string) => un
   };
   return (
     <textarea
-      aria-label="Title"
+      aria-label={t.taskTitle}
       value={value}
       rows={1}
       onChange={(e) => setValue(e.target.value.replace(/\n/g, " "))}
@@ -312,17 +318,18 @@ function EditableTitle({ task, onSave }: { task: Task; onSave: (t: string) => un
 
 function Notes({ task, onSave }: { task: Task; onSave: (n: string) => unknown }) {
   const [value, setValue] = useState(task.notes);
+  const t = useT().detail;
   return (
     <div className="mt-8">
       <label htmlFor="task-notes" className="font-mono text-2xs tracking-wider text-ink-3 uppercase">
-        Notes
+        {t.notes}
       </label>
       <textarea
         id="task-notes"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onBlur={() => value !== task.notes && onSave(value)}
-        placeholder="Links, details, the address…"
+        placeholder={t.notesPlaceholder}
         className="mt-2 min-h-24 w-full resize-y rounded-md bg-surface px-3 py-2 text-sm leading-6 text-ink ring-1 ring-line ring-inset outline-none placeholder:text-ink-3 focus-visible:ring-2 focus-visible:ring-focus [field-sizing:content]"
       />
     </div>
@@ -333,12 +340,13 @@ function Subtasks({ parent, subtasks }: { parent: Task; subtasks: Task[] }) {
   const actions = useTaskActions();
   const [text, setText] = useState("");
   const done = subtasks.filter((s) => s.completedAt).length;
+  const t = useT().detail;
 
   return (
     <section className="mt-8" aria-labelledby="subtasks-h">
       <div className="flex items-baseline justify-between border-b border-line pb-2">
         <h3 id="subtasks-h" className="font-mono text-2xs tracking-wider text-ink-3 uppercase">
-          Subtasks
+          {t.subtasks}
         </h3>
         {subtasks.length > 0 && (
           <span className="font-mono text-2xs text-ink-3">
@@ -363,13 +371,13 @@ function Subtasks({ parent, subtasks }: { parent: Task; subtasks: Task[] }) {
                 priority={4}
                 className="size-4"
                 onCheckedChange={() => void actions.update(s, { completed: !s.completedAt })}
-                aria-label={`${s.completedAt ? "Mark not done" : "Complete"}: ${s.title}`}
+                aria-label={`${s.completedAt ? t.markNotDone : t.complete}: ${s.title}`}
               />
               <span className={cn("min-w-0 flex-1 text-sm", s.completedAt ? "text-ink-3 line-through" : "text-ink")}>{s.title}</span>
               <Button
                 variant="ghost"
                 size="icon-sm"
-                aria-label={`Delete subtask ${s.title}`}
+                aria-label={t.deleteSubtask(s.title)}
                 className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 max-sm:opacity-100"
                 onClick={() => void actions.remove(s)}
               >
@@ -393,11 +401,12 @@ function Subtasks({ parent, subtasks }: { parent: Task; subtasks: Task[] }) {
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Add a subtask"
-          aria-label="Add a subtask"
+          placeholder={t.addSubtask}
+          aria-label={t.addSubtask}
           className="h-8 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-ink-3"
         />
       </form>
+      <SuggestSteps parent={parent} />
     </section>
   );
 }
@@ -405,10 +414,11 @@ function Subtasks({ parent, subtasks }: { parent: Task; subtasks: Task[] }) {
 function AssigneeRow({ task, onChange }: { task: Task; onChange: (assigneeId: string | null) => void }) {
   const members = useMembers(task.projectId).data?.members ?? [];
   const me = getCurrentUserId();
+  const t = useT().detail;
   return (
     <>
       <dt className="text-ink-2">
-        <label htmlFor="task-assignee">Assigned to</label>
+        <label htmlFor="task-assignee">{t.assignedTo}</label>
       </dt>
       <dd>
         <select
@@ -417,7 +427,7 @@ function AssigneeRow({ task, onChange }: { task: Task; onChange: (assigneeId: st
           onChange={(e) => onChange(e.target.value || null)}
           className="h-8 max-w-full rounded-md bg-raised px-2 text-sm text-ink ring-1 ring-control ring-inset"
         >
-          <option value="">Nobody</option>
+          <option value="">{t.nobody}</option>
           {members
             .filter((m) => m.role !== "viewer" && m.role !== "commenter")
             .map((m) => (

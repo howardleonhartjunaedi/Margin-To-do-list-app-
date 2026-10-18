@@ -4,8 +4,9 @@ import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-quer
 import { toast, toastWithUndo } from "@/components/ui/toast";
 import { api, ApiError } from "./api";
 import type { DayNote, Habit } from "./types";
+import { m } from "@/i18n/catalogs";
 
-const failed = (e: unknown) => toast(e instanceof ApiError ? e.message : "Something went wrong. Your change wasn’t saved.");
+const failed = (e: unknown) => toast(e instanceof ApiError ? e.message : m().common.somethingWrong);
 
 export const pkeys = {
   habits: ["habits"] as const,
@@ -46,7 +47,7 @@ export function useHabitActions() {
     },
     archive: (h: Habit) => {
       set((hs) => hs.filter((x) => x.id !== h.id));
-      toastWithUndo(`Archived “${h.name}”. Its history is kept.`, () => {
+      toastWithUndo(m().habits.archived(h.name), () => {
         set((hs) => [...hs, h].sort((a, b) => (a.sortKey < b.sortKey ? -1 : 1)));
         void guarded(() => api.updateHabit(h.id, { archived: false }));
       });

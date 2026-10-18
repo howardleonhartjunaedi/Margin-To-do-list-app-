@@ -1,0 +1,30 @@
+import type { Messages } from "../catalogs";
+
+const nav: Messages["nav"] = {
+  inbox: "Kotak Masuk",
+  today: "Hari Ini",
+  upcoming: "Mendatang",
+  focus: "Fokus",
+  habits: "Kebiasaan",
+  stats: "Statistik",
+  settings: "Pengaturan",
+  plan: "Rencanakan hari",
+  review: "Tinjau hari ini",
+  addTask: "Tambah tugas",
+  search: "Cari",
+  views: "Tampilan",
+  projects: "Proyek",
+  filters: "Filter",
+  overdue: (n) => `${n} terlambat`,
+  overdueSr: "terlambat",
+  shared: (name) => `${name} · dibagikan`,
+  projectsEmpty: "Kelompokkan tugas berdasarkan bidang hidup atau pekerjaan.",
+  newProject: "Proyek baru",
+  createProject: "Buat proyek",
+  signOut: "Keluar",
+  navigation: "Navigasi",
+  openNavigation: "Buka navigasi",
+  skipToTasks: "Lewati ke tugas",
+  display: "Tampilan",
+};
+export default nav;

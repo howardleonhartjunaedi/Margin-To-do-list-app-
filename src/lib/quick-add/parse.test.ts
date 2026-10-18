@@ -103,3 +103,44 @@ describe("parseQuickAdd", () => {
     for (const t of r.tokens) expect(input.slice(t.start, t.end)).toBe(t.text);
   });
 });
+
+describe("parseQuickAdd in Bahasa Indonesia", () => {
+  it("relative days and weekdays", () => {
+    expect(parse("Telepon ibu besok")).toMatchObject({ title: "Telepon ibu", dueDate: "2026-10-18" });
+    expect(parse("Bayar listrik hari ini").dueDate).toBe("2026-10-17");
+    expect(parse("Servis motor lusa").dueDate).toBe("2026-10-19");
+    expect(parse("Rapat jumat").dueDate).toBe("2026-10-23");
+    expect(parse("Rapat hari senin").dueDate).toBe("2026-10-19");
+    expect(parse("Belanja sabtu depan").dueDate).toBe("2026-10-24"); // today is Saturday: "depan" means next week's
+    expect(parse("Laporan minggu depan").dueDate).toBe("2026-10-19");
+    expect(parse("Cek rekening 3 hari lagi").dueDate).toBe("2026-10-20");
+  });
+
+  it("times with part of day, merged with the date", () => {
+    expect(parse("Dokter jumat jam 3 sore")).toMatchObject({ title: "Dokter", dueDate: "2026-10-23", dueTime: "15:00" });
+    expect(parse("Telepon tukang ledeng besok jam 2 siang p1 #home")).toMatchObject({
+      title: "Telepon tukang ledeng",
+      dueDate: "2026-10-18",
+      dueTime: "14:00",
+      priority: 1,
+      project: { id: "p-home" },
+    });
+    expect(parse("Kirim laporan pukul 14.30")).toMatchObject({ dueDate: "2026-10-17", dueTime: "14:30" });
+    expect(parse("Sarapan jam 9 pagi")).toMatchObject({ dueDate: "2026-10-18", dueTime: "09:00" }); // 09:00 has passed today
+    expect(parse("Tidur jam 10 malam").dueTime).toBe("22:00");
+  });
+
+  it("repeats", () => {
+    expect(parse("Siram tanaman setiap 3 hari").recurrence?.rrule).toBe("FREQ=DAILY;INTERVAL=3");
+    expect(parse("Olahraga setiap senin dan kamis").recurrence?.rrule).toBe("FREQ=WEEKLY;BYDAY=MO,TH");
+    expect(parse("Standup setiap hari kerja jam 9").recurrence?.rrule).toBe("FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR");
+    expect(parse("Bayar sewa setiap tanggal 1").recurrence?.rrule).toBe("FREQ=MONTHLY;BYMONTHDAY=1");
+    expect(parse("Bersih-bersih setiap minggu").recurrence?.rrule).toBe("FREQ=WEEKLY");
+    expect(parse("Siram tanaman setiap 3 hari").title).toBe("Siram tanaman");
+  });
+
+  it("estimates in jam / menit", () => {
+    expect(parse("Susun anggaran ~2j").estimateMinutes).toBe(120);
+    expect(parse("Balas email ~15mnt").estimateMinutes).toBe(15);
+  });
+});

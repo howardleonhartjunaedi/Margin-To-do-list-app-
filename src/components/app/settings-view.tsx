@@ -1,6 +1,7 @@
 "use client";
 
-import { BellRing, Mail, Moon, Newspaper, Smartphone } from "lucide-react";
+import { BellRing, Languages, ListTree, Mail, Moon, Newspaper, Smartphone } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,9 @@ import { ErrorState, Skeleton } from "@/components/ui/states";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/components/ui/toast";
 import { ViewHeader } from "@/components/tasks/view-header";
+import { useT } from "@/i18n/client";
+import { rememberLocale } from "@/i18n/cookie";
+import { isLocale, LOCALE_NAMES, LOCALES } from "@/i18n/locales";
 import { IntegrationsSettings } from "./integrations-settings";
 import { api } from "@/lib/api";
 import { useSettings, useSettingsActions } from "@/lib/data";
@@ -18,11 +22,14 @@ import { useSession } from "@/lib/auth-client";
 
 const timeInput =
   "h-8 rounded-md bg-raised px-2 font-mono text-xs text-ink ring-1 ring-control ring-inset disabled:opacity-45";
+const select = "h-8 max-w-full rounded-md bg-raised px-2 text-sm text-ink ring-1 ring-control ring-inset";
 
 export function SettingsView() {
   const q = useSettings();
   const save = useSettingsActions();
   const session = useSession();
+  const router = useRouter();
+  const t = useT().settings;
   const deviceTz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone, []);
   const zones = useMemo(() => {
     try {
@@ -45,21 +52,44 @@ export function SettingsView() {
 
   return (
     <>
-      <ViewHeader title="Settings" sub="Saved as you change them" />
+      <ViewHeader title={t.title} sub={t.sub} />
 
-      <Section title="Where reminders reach you" lede="You always see reminders here in Margin. Add your devices and inbox if you like.">
-        <PushRow devices={s.pushDevices} />
-        <Row icon={Mail} title="Email" hint={session.data?.user.email ? `To ${session.data.user.email}` : undefined}>
-          <Switch checked={s.emailEnabled} onCheckedChange={(v) => void save({ emailEnabled: v })} aria-label="Email reminders" />
-        </Row>
-        <Row icon={BellRing} title="Default reminder" hint="Added when a task gets a time.">
+      <Section title={t.language} lede={t.languageLede}>
+        <Row icon={Languages} title={t.language}>
           <select
-            aria-label="Default reminder"
+            aria-label={t.language}
+            value={s.locale ?? ""}
+            onChange={async (e) => {
+              const locale = isLocale(e.target.value) ? e.target.value : null;
+              rememberLocale(locale);
+              await save({ locale });
+              router.refresh(); // the layout re-renders in the new language
+            }}
+            className={select}
+          >
+            <option value="">{t.matchBrowser}</option>
+            {LOCALES.map((l) => (
+              <option key={l} value={l} lang={l}>
+                {LOCALE_NAMES[l]}
+              </option>
+            ))}
+          </select>
+        </Row>
+      </Section>
+
+      <Section title={t.reachTitle} lede={t.reachLede}>
+        <PushRow devices={s.pushDevices} />
+        <Row icon={Mail} title={t.email} hint={session.data?.user.email ? t.emailTo(session.data.user.email) : undefined}>
+          <Switch checked={s.emailEnabled} onCheckedChange={(v) => void save({ emailEnabled: v })} aria-label={t.emailReminders} />
+        </Row>
+        <Row icon={BellRing} title={t.defaultReminder} hint={t.defaultReminderHint}>
+          <select
+            aria-label={t.defaultReminder}
             value={s.defaultReminderMinutes ?? ""}
             onChange={(e) => void save({ defaultReminderMinutes: e.target.value === "" ? null : Number(e.target.value) })}
             className="h-8 rounded-md bg-raised px-2 text-sm text-ink ring-1 ring-control ring-inset"
           >
-            <option value="">None</option>
+            <option value="">{t.none}</option>
             {[0, 10, 30, 60, 1440].map((m) => (
               <option key={m} value={m}>
                 {describeOffset(m)}
@@ -69,25 +99,25 @@ export function SettingsView() {
         </Row>
       </Section>
 
-      <Section title="Quiet hours" lede="Reminders that fall in this window wait until it ends. Nothing is lost.">
-        <Row icon={Moon} title="Hold reminders overnight">
-          <Switch checked={s.quietEnabled} onCheckedChange={(v) => void save({ quietEnabled: v })} aria-label="Quiet hours" />
+      <Section title={t.quietTitle} lede={t.quietLede}>
+        <Row icon={Moon} title={t.holdOvernight}>
+          <Switch checked={s.quietEnabled} onCheckedChange={(v) => void save({ quietEnabled: v })} aria-label={t.quietHours} />
         </Row>
         <div className="flex flex-wrap items-center gap-3 py-3 pl-8 text-sm text-ink-2">
-          From
+          {t.from}
           <input
             type="time"
-            aria-label="Quiet hours start"
+            aria-label={t.quietStart}
             data-cursor="native"
             disabled={!s.quietEnabled}
             defaultValue={s.quietStart}
             onBlur={(e) => e.target.value && e.target.value !== s.quietStart && void save({ quietStart: e.target.value })}
             className={timeInput}
           />
-          until
+          {t.until}
           <input
             type="time"
-            aria-label="Quiet hours end"
+            aria-label={t.quietEnd}
             data-cursor="native"
             disabled={!s.quietEnabled}
             defaultValue={s.quietEnd}
@@ -97,15 +127,15 @@ export function SettingsView() {
         </div>
       </Section>
 
-      <Section title="Daily digest" lede="One short summary of what’s due today and what’s overdue. Skipped on days with nothing due.">
-        <Row icon={Newspaper} title="Send a morning digest" hint={s.emailEnabled ? "In Margin and by email." : "In Margin. Turn on email above to get it in your inbox too."}>
-          <Switch checked={s.digestEnabled} onCheckedChange={(v) => void save({ digestEnabled: v })} aria-label="Daily digest" />
+      <Section title={t.digestTitle} lede={t.digestLede}>
+        <Row icon={Newspaper} title={t.sendDigest} hint={s.emailEnabled ? t.digestHintEmail : t.digestHintNoEmail}>
+          <Switch checked={s.digestEnabled} onCheckedChange={(v) => void save({ digestEnabled: v })} aria-label={t.dailyDigest} />
         </Row>
         <div className="flex items-center gap-3 py-3 pl-8 text-sm text-ink-2">
-          At
+          {t.at}
           <input
             type="time"
-            aria-label="Digest time"
+            aria-label={t.digestTime}
             data-cursor="native"
             disabled={!s.digestEnabled}
             defaultValue={s.digestTime}
@@ -115,15 +145,11 @@ export function SettingsView() {
         </div>
       </Section>
 
-      <Section title="Time" lede="Due times, quiet hours and the digest all follow this time zone.">
+      <Section title={t.timeTitle} lede={t.timeLede}>
         <div className="flex flex-col gap-3 py-3">
           <label className="flex flex-wrap items-center justify-between gap-3 text-sm text-ink">
-            Time zone
-            <select
-              value={s.timeZone}
-              onChange={(e) => void save({ timeZone: e.target.value })}
-              className="h-8 max-w-full rounded-md bg-raised px-2 text-sm text-ink ring-1 ring-control ring-inset"
-            >
+            {t.timeZone}
+            <select value={s.timeZone} onChange={(e) => void save({ timeZone: e.target.value })} className={select}>
               {(zones.includes(s.timeZone) ? zones : [s.timeZone, ...zones]).map((z) => (
                 <option key={z} value={z}>
                   {z.replace(/_/g, " ")}
@@ -133,16 +159,16 @@ export function SettingsView() {
           </label>
           {deviceTz !== s.timeZone && (
             <div className="flex flex-wrap items-center gap-3 rounded-md bg-warning-soft px-3 py-2 text-sm text-ink">
-              This device is set to {deviceTz.replace(/_/g, " ")}.
+              {t.deviceZone(deviceTz.replace(/_/g, " "))}
               <Button size="sm" variant="ghost" className="ml-auto" onClick={() => void save({ timeZone: deviceTz })}>
-                Use {deviceTz.split("/").pop()?.replace(/_/g, " ")}
+                {t.useZone(deviceTz.split("/").pop()?.replace(/_/g, " ") ?? deviceTz)}
               </Button>
             </div>
           )}
           <label className="flex flex-wrap items-center justify-between gap-3 text-sm text-ink">
             <span>
-              Reminder time for tasks without a time
-              <span className="block text-xs text-ink-3">“At time of task” on a date-only task fires then.</span>
+              {t.dayTime}
+              <span className="block text-xs text-ink-3">{t.dayTimeHint}</span>
             </span>
             <input
               type="time"
@@ -153,6 +179,17 @@ export function SettingsView() {
             />
           </label>
         </div>
+      </Section>
+
+      <Section title={t.aiTitle} lede={t.aiLede}>
+        <Row icon={ListTree} title={t.aiRow} hint={s.aiAvailable ? t.aiHint : t.aiUnavailable}>
+          <Switch
+            checked={s.aiEnabled && s.aiAvailable}
+            disabled={!s.aiAvailable}
+            onCheckedChange={(v) => void save({ aiEnabled: v })}
+            aria-label={t.aiLabel}
+          />
+        </Row>
       </Section>
       <IntegrationsSettings />
     </>
@@ -185,29 +222,25 @@ function Row({ icon, title, hint, children }: { icon: typeof Mail; title: string
 function PushRow({ devices }: { devices: number }) {
   const [state, setState] = useState<PushState | null>(null);
   const [busy, setBusy] = useState(false);
+  const t = useT().settings;
   useEffect(() => void pushState().then(setState), []);
 
-  const hint =
-    state === "unsupported"
-      ? "This browser can’t receive push notifications."
-      : state === "denied"
-        ? "Notifications are blocked for this site. Allow them in your browser’s site settings."
-        : `${devices} ${devices === 1 ? "device" : "devices"} subscribed.`;
+  const hint = state === "unsupported" ? t.pushUnsupported : state === "denied" ? t.pushDenied : t.pushDevices(devices);
 
   return (
-    <Row icon={Smartphone} title="Push on this device" hint={hint}>
+    <Row icon={Smartphone} title={t.pushRow} hint={hint}>
       <div className="flex items-center gap-2">
         {state === "on" && (
           <>
-            <Badge tone="success">On</Badge>
+            <Badge tone="success">{t.on}</Badge>
             <Button
               size="sm"
               variant="ghost"
               onClick={async () => {
-                await api.testPush().then(() => toast("Test sent — it should appear in a moment."), (e) => toast(e.message));
+                await api.testPush().then(() => toast(t.testSent), (e) => toast(e.message));
               }}
             >
-              Send a test
+              {t.sendTest}
             </Button>
           </>
         )}
@@ -227,7 +260,7 @@ function PushRow({ devices }: { devices: number }) {
               }
             }}
           >
-            {state === "on" ? "Turn off" : "Turn on"}
+            {state === "on" ? t.turnOff : t.turnOn}
           </Button>
         )}
       </div>

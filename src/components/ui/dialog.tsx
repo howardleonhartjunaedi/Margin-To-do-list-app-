@@ -6,6 +6,7 @@ import { forwardRef, useCallback } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "./button";
 import { Icon } from "./icon";
+import { m } from "@/i18n/catalogs";
 
 export const Dialog = DialogPrimitive.Root;
 export const DialogTrigger = DialogPrimitive.Trigger;
@@ -72,7 +73,7 @@ export const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(func
           )}
           <div className="mt-5">{children}</div>
           <DialogPrimitive.Close asChild>
-            <Button variant="ghost" size="icon-sm" className="absolute top-4 right-4" aria-label="Close">
+            <Button variant="ghost" size="icon-sm" className="absolute top-4 right-4" aria-label={m().common.close}>
               <Icon icon={X} />
             </Button>
           </DialogPrimitive.Close>

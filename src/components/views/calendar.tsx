@@ -24,13 +24,16 @@ import { ErrorState } from "@/components/ui/states";
 import { duration, ease, spring } from "@/design/motion";
 import { cn } from "@/lib/cn";
 import { useTaskActions, useTasks } from "@/lib/data";
-import { addDays, daysBetween, formatDue, formatTime, fromISODate } from "@/lib/dates";
+import { addDays, daysBetween, formatDue, formatTime, fromISODate, formatDate } from "@/lib/dates";
 import { applyFilter, type Filter } from "@/lib/filters";
 import type { Task, View } from "@/lib/types";
 import { useUrlParam } from "@/lib/view-transition";
+import { useT } from "@/i18n/client";
+import { m } from "@/i18n/catalogs";
 
-const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const MONTH = new Intl.DateTimeFormat("en-GB", { month: "long", year: "numeric" });
+// Monday-first week; names from Intl in the language on screen (2024-01-01 was a Monday).
+const WEEK_REF = ["2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05", "2024-01-06", "2024-01-07"];
+const MONTH: Intl.DateTimeFormatOptions = { month: "long", year: "numeric" };
 const MAX_CHIPS = 3;
 
 function monthGrid(month: string) {
@@ -52,6 +55,7 @@ const byTime = (a: Task, b: Task) => (a.dueTime ?? "99").localeCompare(b.dueTime
  * hitting the right day matters more than flourish.
  */
 export function CalendarLayout({ projectId, filter }: { projectId?: string; filter: Filter }) {
+  const tl = useT().layouts;
   const { today, openTask, openQuickAdd } = useAppUI();
   const actions = useTaskActions();
   const [month, setMonth] = useUrlParam("month", today.slice(0, 7));
@@ -90,7 +94,7 @@ export function CalendarLayout({ projectId, filter }: { projectId?: string; filt
     void actions.update(
       t,
       { dueDate: to, ...(t.startDate ? { startDate: addDays(t.startDate, delta) } : {}) },
-      { message: `Moved to ${formatDue(to, today)}.`, undo: { dueDate: t.dueDate, startDate: t.startDate, dueTime: t.dueTime } },
+      { message: m().tasks.movedTo(formatDue(to, today)), undo: { dueDate: t.dueDate, startDate: t.startDate, dueTime: t.dueTime } },
     );
   };
 
@@ -99,14 +103,14 @@ export function CalendarLayout({ projectId, filter }: { projectId?: string; filt
   return (
     <div>
       <div className="mb-4 flex items-center gap-2">
-        <h2 className="min-w-0 flex-1 font-display text-2xl text-ink">{MONTH.format(fromISODate(`${month}-01`))}</h2>
+        <h2 className="min-w-0 flex-1 font-display text-2xl text-ink">{formatDate(`${month}-01`, MONTH)}</h2>
         <Button size="sm" variant="ghost" onClick={() => go(0)} disabled={month === today.slice(0, 7)}>
-          Today
+          {tl.today}
         </Button>
-        <Button size="icon-sm" variant="ghost" aria-label="Previous month" onClick={() => go(-1)}>
+        <Button size="icon-sm" variant="ghost" aria-label={tl.prevMonth} onClick={() => go(-1)}>
           <Icon icon={ChevronLeft} />
         </Button>
-        <Button size="icon-sm" variant="ghost" aria-label="Next month" onClick={() => go(1)}>
+        <Button size="icon-sm" variant="ghost" aria-label={tl.nextMonth} onClick={() => go(1)}>
           <Icon icon={ChevronRight} />
         </Button>
       </div>
@@ -120,10 +124,10 @@ export function CalendarLayout({ projectId, filter }: { projectId?: string; filt
       >
         <div data-cursor="native" className="overflow-hidden rounded-md ring-1 ring-line">
           <div className="grid grid-cols-7 border-b border-line bg-surface">
-            {WEEKDAYS.map((d) => (
+            {WEEK_REF.map((d) => (
               <div key={d} className="py-1.5 text-center font-mono text-2xs text-ink-3">
-                <span className="sm:hidden">{d[0]}</span>
-                <span className="max-sm:hidden">{d}</span>
+                <span className="sm:hidden">{formatDate(d, { weekday: "narrow" })}</span>
+                <span className="max-sm:hidden">{formatDate(d, { weekday: "short" })}</span>
               </div>
             ))}
           </div>
@@ -137,21 +141,26 @@ export function CalendarLayout({ projectId, filter }: { projectId?: string; filt
               className="grid grid-cols-7 bg-line"
               style={{ gap: 1 }}
               role="grid"
-              aria-label={MONTH.format(fromISODate(`${month}-01`))}
+              aria-label={formatDate(`${month}-01`, MONTH)}
             >
-              {days.map((d) => (
-                <DayCell
-                  key={d}
-                  date={d}
-                  today={today}
-                  inMonth={d.startsWith(month)}
-                  tasks={byDay.get(d) ?? []}
-                  loading={q.isPending}
-                  selected={selected === d}
-                  onSelect={() => setSelected(d)}
-                  onAdd={() => add(d)}
-                  onOpen={openTask}
-                />
+              {/* Weeks as rows (display: contents keeps the 7-column grid) so the grid role is complete. */}
+              {Array.from({ length: Math.ceil(days.length / 7) }, (_, w) => (
+                <div key={w} role="row" className="contents">
+                  {days.slice(w * 7, w * 7 + 7).map((d) => (
+                    <DayCell
+                      key={d}
+                      date={d}
+                      today={today}
+                      inMonth={d.startsWith(month)}
+                      tasks={byDay.get(d) ?? []}
+                      loading={q.isPending}
+                      selected={selected === d}
+                      onSelect={() => setSelected(d)}
+                      onAdd={() => add(d)}
+                      onOpen={openTask}
+                    />
+                  ))}
+                </div>
               ))}
             </motion.div>
           </AnimatePresence>
@@ -172,14 +181,14 @@ export function CalendarLayout({ projectId, filter }: { projectId?: string; filt
         <ul className="divide-y divide-line border-y border-line">
           {(byDay.get(selected) ?? []).map((t) => (
             <li key={t.id} className="flex items-center gap-3 py-3">
-              <TaskCheckbox checked={false} priority={t.priority} onCheckedChange={() => void actions.complete(t)} aria-label={`Complete: ${t.title}`} />
+              <TaskCheckbox checked={false} priority={t.priority} onCheckedChange={() => void actions.complete(t)} aria-label={`${m().item.complete}: ${t.title}`} />
               <button className="min-w-0 flex-1 text-left text-base text-ink" onClick={() => openTask(t.id)}>
                 {t.title}
               </button>
               {t.dueTime && <span className="font-mono text-2xs text-ink-2">{formatTime(t.dueTime)}</span>}
             </li>
           ))}
-          {!(byDay.get(selected) ?? []).length && <li className="py-4 text-sm text-ink-3">Nothing on this day.</li>}
+          {!(byDay.get(selected) ?? []).length && <li className="py-4 text-sm text-ink-3">{tl.nothingOnDay}</li>}
         </ul>
       </section>
     </div>
@@ -208,6 +217,7 @@ function DayCell({
   onOpen: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: date });
+  const tl = useT().layouts;
   const isToday = date === today;
   const weekend = [0, 6].includes(fromISODate(date).getDay());
   const extra = tasks.length - MAX_CHIPS;
@@ -215,7 +225,7 @@ function DayCell({
     <div
       ref={setNodeRef}
       role="gridcell"
-      aria-label={`${formatDue(date, today)}, ${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}`}
+      aria-label={tl.dayCell(formatDue(date, today), tasks.length)}
       onClick={(e) => {
         if (e.target !== e.currentTarget) return;
         // Phones: tap selects; desktop: click empty space adds.
@@ -272,7 +282,7 @@ function DayCell({
         </Popover>
       )}
       <button
-        aria-label={`Add task on ${formatDue(date, today)}`}
+        aria-label={tl.addTaskOn(formatDue(date, today))}
         onClick={onAdd}
         className="absolute top-1.5 right-1.5 grid size-6 place-items-center rounded-sm text-ink-3 opacity-0 transition-opacity duration-(--dur-fast) group-hover:opacity-100 hover:bg-sunken hover:text-ink focus-visible:opacity-100 max-sm:hidden"
       >

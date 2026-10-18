@@ -17,8 +17,10 @@ import { timeAgo } from "@/lib/dates";
 import { modKey } from "@/lib/shortcuts";
 import type { Comment, Role } from "@/lib/types";
 import { Avatar } from "./share-dialog";
+import { useT } from "@/i18n/client";
+import { m } from "@/i18n/catalogs";
 
-const fail = (e: unknown) => toast(e instanceof ApiError ? e.message : "Something went wrong. Try again.");
+const fail = (e: unknown) => toast(e instanceof ApiError ? e.message : m().share.tryAgain);
 
 /** Plain text with links made clickable. No HTML from users ever reaches the DOM. */
 function Linkified({ text }: { text: string }) {
@@ -45,6 +47,7 @@ export function Comments({ taskId, role }: { taskId: string; role: Role }) {
   const [editing, setEditing] = useState<string | null>(null);
   const canComment = role !== "viewer";
   const me = getCurrentUserId();
+  const t = useT().share;
 
   const post = async () => {
     const body = text.trim();
@@ -63,7 +66,7 @@ export function Comments({ taskId, role }: { taskId: string; role: Role }) {
     <section className="mt-8" aria-labelledby="comments-h">
       <div className="flex items-baseline justify-between border-b border-line pb-2">
         <h3 id="comments-h" className="font-mono text-2xs tracking-wider text-ink-3 uppercase">
-          Comments
+          {t.comments}
         </h3>
         {!!q.data?.length && <span className="font-mono text-2xs text-ink-3">{q.data.length}</span>}
       </div>
@@ -85,7 +88,7 @@ export function Comments({ taskId, role }: { taskId: string; role: Role }) {
                   <span className="font-medium text-ink">{c.authorName}</span>
                   <span className="font-mono text-2xs text-ink-3">
                     {timeAgo(c.createdAt)}
-                    {c.editedAt && " · edited"}
+                    {c.editedAt && ` · ${t.edited}`}
                   </span>
                 </p>
                 {editing === c.id ? (
@@ -107,14 +110,14 @@ export function Comments({ taskId, role }: { taskId: string; role: Role }) {
               {(c.userId === me || role === "owner") && editing !== c.id && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon-sm" aria-label="Comment actions" className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 max-sm:opacity-100">
+                    <Button variant="ghost" size="icon-sm" aria-label={t.commentActions} className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 max-sm:opacity-100">
                       <Icon icon={MoreHorizontal} size="xs" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     {c.userId === me && (
                       <DropdownMenuItem icon={<Icon icon={Pencil} />} onSelect={() => setEditing(c.id)}>
-                        Edit
+                        {t.edit}
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem
@@ -125,7 +128,7 @@ export function Comments({ taskId, role }: { taskId: string; role: Role }) {
                         await api.deleteComment(c.id).catch((e) => (fail(e), qc.invalidateQueries({ queryKey: ["comments", taskId] })));
                       }}
                     >
-                      Delete
+                      {t.delete}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -145,8 +148,8 @@ export function Comments({ taskId, role }: { taskId: string; role: Role }) {
           <Textarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={q.data?.length ? "Reply…" : "Add a comment — a note to yourself, or to the people sharing this project"}
-            aria-label="Add a comment"
+            placeholder={q.data?.length ? t.reply : t.firstComment}
+            aria-label={t.addComment}
             className="min-h-16"
             onKeyDown={(e) => {
               if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
@@ -161,12 +164,12 @@ export function Comments({ taskId, role }: { taskId: string; role: Role }) {
               <Kbd>↵</Kbd>
             </span>
             <Button type="submit" size="sm" disabled={!text.trim()}>
-              Comment
+              {t.comment}
             </Button>
           </div>
         </form>
       ) : (
-        <p className="py-3 text-xs text-ink-3">You can read this project but not comment.</p>
+        <p className="py-3 text-xs text-ink-3">{t.readOnly}</p>
       )}
     </section>
   );
@@ -174,6 +177,7 @@ export function Comments({ taskId, role }: { taskId: string; role: Role }) {
 
 function EditBox({ initial, onSave, onCancel }: { initial: string; onSave: (b: string) => void; onCancel: () => void }) {
   const [v, setV] = useState(initial);
+  const t = useT().share;
   return (
     <form
       className="mt-1"
@@ -182,13 +186,13 @@ function EditBox({ initial, onSave, onCancel }: { initial: string; onSave: (b: s
         if (v.trim()) onSave(v.trim());
       }}
     >
-      <Textarea value={v} onChange={(e) => setV(e.target.value)} autoFocus aria-label="Edit comment" className="min-h-16" />
+      <Textarea value={v} onChange={(e) => setV(e.target.value)} autoFocus aria-label={t.editComment} className="min-h-16" />
       <div className="mt-2 flex justify-end gap-2">
         <Button type="button" size="sm" variant="ghost" onClick={onCancel}>
-          Cancel
+          {t.cancel}
         </Button>
         <Button type="submit" size="sm" disabled={!v.trim()}>
-          Save
+          {t.save}
         </Button>
       </div>
     </form>

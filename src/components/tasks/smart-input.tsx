@@ -7,8 +7,10 @@ import { minutesLabel } from "@/lib/focus";
 import { Icon } from "@/components/ui/icon";
 import { spring } from "@/design/motion";
 import { cn } from "@/lib/cn";
+import { useT } from "@/i18n/client";
 import { formatDue, formatTime } from "@/lib/dates";
 import type { ParsedTask, TokenKind } from "@/lib/quick-add/parse";
+import { describeRRule } from "@/lib/quick-add/rrule";
 
 const MARK: Record<TokenKind, string> = {
   date: "bg-accent-soft text-ink",
@@ -92,6 +94,7 @@ export function ParsedChips({
   projectName?: string;
   defaults?: { dueDate?: string | null };
 }) {
+  const t = useT().quick;
   const due = parsed.dueDate ?? defaults?.dueDate ?? null;
   const chips: { key: string; icon: typeof Flag; text: string; tone?: string; implied?: boolean }[] = [];
   if (due)
@@ -103,16 +106,16 @@ export function ParsedChips({
       implied: !parsed.dueDate,
     });
   if (parsed.dueTime) chips.push({ key: "time", icon: Clock, text: formatTime(parsed.dueTime) });
-  if (parsed.recurrence) chips.push({ key: "rec", icon: Repeat, text: parsed.recurrence.label });
+  if (parsed.recurrence) chips.push({ key: "rec", icon: Repeat, text: describeRRule(parsed.recurrence.rrule) });
   if (parsed.priority < 4) chips.push({ key: "pri", icon: Flag, text: `P${parsed.priority}`, tone: `text-p${parsed.priority}` });
   if (parsed.project) chips.push({ key: "proj", icon: Hash, text: parsed.project.name });
-  else if (parsed.unknownProject) chips.push({ key: "newproj", icon: FolderPlus, text: `New project “${parsed.unknownProject}”` });
+  else if (parsed.unknownProject) chips.push({ key: "newproj", icon: FolderPlus, text: t.newProject(parsed.unknownProject) });
   else if (projectName) chips.push({ key: "proj", icon: Hash, text: projectName, implied: true });
   for (const l of parsed.labels) chips.push({ key: `l-${l.toLowerCase()}`, icon: Tag, text: l });
   if (parsed.estimateMinutes) chips.push({ key: "est", icon: Hourglass, text: `~${minutesLabel(parsed.estimateMinutes)}` });
 
   return (
-    <ul className="flex min-h-7 flex-wrap items-center gap-1.5" aria-live="polite" aria-label="Understood">
+    <ul className="flex min-h-7 flex-wrap items-center gap-1.5" aria-live="polite" aria-label={t.understood}>
       <AnimatePresence initial={false} mode="popLayout">
         {chips.map((c) => (
           <motion.li
@@ -126,7 +129,7 @@ export function ParsedChips({
               "inline-flex h-7 items-center gap-1.5 rounded-sm px-2 text-xs",
               c.implied ? "border border-dashed border-line-strong text-ink-2" : "bg-sunken text-ink",
             )}
-            title={c.implied ? "From the page you’re on" : undefined}
+            title={c.implied ? t.fromPage : undefined}
           >
             <Icon icon={c.icon} size="xs" className={cn("text-ink-3", c.tone === "text-p1" && "text-p1", c.tone === "text-p2" && "text-p2", c.tone === "text-p3" && "text-p3")} />
             <span className={cn(c.tone === "text-danger" && "text-danger")}>{c.text}</span>

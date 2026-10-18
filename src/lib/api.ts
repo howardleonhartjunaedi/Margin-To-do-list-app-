@@ -41,6 +41,18 @@ export interface ImportSummary {
   imported: boolean;
 }
 import type { CreateTaskInput, UpdateTaskInput } from "./validation";
+import { m } from "@/i18n/catalogs";
+import { currentLocale } from "@/i18n/runtime";
+
+export interface TriageSuggestion {
+  taskId: string;
+  title: string;
+  projectId: string | null;
+  projectName: string | null;
+  dueDate: string | null;
+  priority: 1 | 2 | 3 | 4;
+  reason: string;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -59,14 +71,14 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     res = await fetch(path, { ...init, headers: { "content-type": "application/json", "x-client-id": clientId, ...init?.headers } });
   } catch {
-    throw new ApiError("You’re offline. Your change wasn’t saved — try again when you’re back.", 0);
+    throw new ApiError(m().common.offlineNotSaved, 0);
   }
   if (res.status === 401) {
     window.location.href = `/sign-in?reauth=1&next=${encodeURIComponent(location.pathname)}`;
-    throw new ApiError("Your session ended. Sign in again to continue.", 401);
+    throw new ApiError(m().common.sessionEnded, 401);
   }
   const data = await res.json().catch(() => null);
-  if (!res.ok) throw new ApiError(data?.error ?? "Something went wrong. Your change wasn’t saved.", res.status);
+  if (!res.ok) throw new ApiError(data?.error ?? m().common.somethingWrong, res.status);
   return data as T;
 }
 
@@ -115,9 +127,9 @@ export const api = {
       body: JSON.stringify(ids === "all" ? { all: true } : { ids }),
     }),
 
-  settings: () => request<Settings & { pushDevices: number }>("/api/settings"),
+  settings: () => request<Settings & { pushDevices: number; aiAvailable: boolean }>("/api/settings"),
   updateSettings: (patch: Partial<Settings>) =>
-    request<Settings & { pushDevices: number }>("/api/settings", { method: "PATCH", body: JSON.stringify(patch) }),
+    request<Settings & { pushDevices: number; aiAvailable: boolean }>("/api/settings", { method: "PATCH", body: JSON.stringify(patch) }),
 
   pushKey: () => request<{ publicKey: string | null }>("/api/push"),
   subscribePush: (sub: PushSubscriptionJSON) => request<{ ok: true }>("/api/push", { method: "POST", body: JSON.stringify(sub) }),
@@ -171,6 +183,12 @@ export const api = {
   feed: () => request<{ enabled: boolean; url: string | null }>("/api/ical"),
   rotateFeed: () => request<{ enabled: boolean; url: string | null }>("/api/ical", { method: "POST" }),
   disableFeed: () => request<{ enabled: boolean; url: string | null }>("/api/ical", { method: "DELETE" }),
+  aiBreakdown: (taskId: string) =>
+    request<{ steps: { title: string; estimateMinutes: number | null }[] }>("/api/ai/breakdown", {
+      method: "POST",
+      body: JSON.stringify({ taskId, locale: currentLocale() }),
+    }),
+  aiTriage: () => request<{ suggestions: TriageSuggestion[] }>("/api/ai/triage", { method: "POST", body: JSON.stringify({ locale: currentLocale() }) }),
   importData: (input: { format: "json" | "csv" | "text"; content: string; dryRun?: boolean }) =>
     request<ImportSummary>("/api/import", { method: "POST", body: JSON.stringify(input) }),
   tokens: () => request<ApiTokenInfo[]>("/api/tokens"),

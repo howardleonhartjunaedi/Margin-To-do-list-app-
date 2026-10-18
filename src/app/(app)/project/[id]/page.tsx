@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
+import { localizedTitle } from "@/i18n/server";
 import { ProjectView } from "@/components/tasks/views";
 
-export const metadata: Metadata = { title: "Project" };
+export const generateMetadata = localizedTitle((t) => t.palette.project);
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

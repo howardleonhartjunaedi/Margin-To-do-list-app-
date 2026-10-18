@@ -8,6 +8,7 @@ import { Icon } from "@/components/ui/icon";
 import { duration, ease } from "@/design/motion";
 import { cn } from "@/lib/cn";
 import { compact, niceMax } from "@/lib/stats";
+import { m } from "@/i18n/catalogs";
 
 /*
  * Charts follow one spec: thin marks (≤24px), 4px rounded data-end with a square baseline,
@@ -113,6 +114,7 @@ export function ColumnChart({
                   height={plotH}
                   fill="transparent"
                   tabIndex={0}
+                  role="img"
                   aria-label={`${d.label}: ${format(d.value)}`}
                   aria-describedby={active === i ? `${id}-tip` : undefined}
                   onPointerEnter={() => setActive(i)}
@@ -183,8 +185,9 @@ export function CountUp({ value, format = (v) => compact(v) }: { value: number; 
     return () => c.stop();
   }, [inView, value, level]);
   return (
-    <span ref={ref} aria-label={format(value)}>
+    <span ref={ref}>
       <span aria-hidden>{format(shown)}</span>
+      <span className="sr-only">{format(value)}</span>
     </span>
   );
 }
@@ -217,7 +220,7 @@ export function StatTile({
         <p className={cn("inline-flex items-center gap-1 text-xs", good ? "text-success" : "text-danger")}>
           <Icon icon={delta >= 0 ? TrendingUp : TrendingDown} size="xs" />
           {delta > 0 ? "+" : ""}
-          {delta}% <span className="text-ink-3">vs previous period</span>
+          {delta}% <span className="text-ink-3">{m().stats.vsPrevious}</span>
         </p>
       ) : (
         note && <p className="text-xs text-ink-3">{note}</p>
@@ -233,7 +236,7 @@ export function DataTable({ caption, rows, valueLabel }: { caption: string; rows
         <caption className="sr-only">{caption}</caption>
         <thead>
           <tr className="border-b border-line text-left text-xs text-ink-3">
-            <th className="py-1.5 font-normal">Period</th>
+            <th className="py-1.5 font-normal">{m().stats.period}</th>
             <th className="py-1.5 text-right font-normal">{valueLabel}</th>
           </tr>
         </thead>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { useAfterLoad } from "./deferred-chrome";
 import { usePreferences } from "./providers/preferences";
 
 /**
@@ -12,13 +13,14 @@ import { usePreferences } from "./providers/preferences";
  * - `data-lenis-prevent` on any nested scroller (lists, modals, popovers) opts it out
  * - anchor links are handled by Lenis so they ease to the target, clear of a sticky header
  * - off entirely unless motion is Full, and on touch screens (their own scrolling is better)
- * - fetched after hydration, so it never delays the first paint
+ * - fetched once the page has loaded, so it never competes with the first paint
  */
 export function SmoothScroll() {
   const { motion } = usePreferences();
+  const loaded = useAfterLoad();
 
   useEffect(() => {
-    if (motion !== "full" || matchMedia("(pointer: coarse)").matches) return;
+    if (!loaded || motion !== "full" || matchMedia("(pointer: coarse)").matches) return;
     let cancelled = false;
     let cleanup: (() => void) | undefined;
 
@@ -45,7 +47,7 @@ export function SmoothScroll() {
       cancelled = true;
       cleanup?.();
     };
-  }, [motion]);
+  }, [motion, loaded]);
 
   return null;
 }

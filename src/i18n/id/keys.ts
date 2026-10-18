@@ -1,0 +1,42 @@
+import type { Messages } from "../catalogs";
+
+const keys: Messages["keys"] = {
+  title: "Pintasan papan ketik",
+  description: "Tombol tunggal berfungsi di mana saja selama Anda tidak sedang mengetik.",
+  then: "lalu",
+  inQuickAdd: "Di tambah cepat",
+  groups: {
+    anywhere: "Di mana saja",
+    goTo: "Buka",
+    layout: "Tata letak",
+    focused: "Tugas terpilih dalam daftar",
+    cards: "Papan, matriks, kalender",
+  },
+  addTask: "Tambah tugas",
+  palette: "Palet perintah",
+  search: "Cari tugas",
+  showShortcuts: "Tampilkan pintasan ini",
+  calendar: "Kalender",
+  focusTimer: "Pengatur waktu fokus",
+  moveBetween: "Pindah antartugas (atau J / K)",
+  complete: "Selesaikan (atau Spasi)",
+  openDetails: "Buka detail (atau E)",
+  reschedule: "Jadwalkan ulang",
+  setPriority: "Atur prioritas 1–4",
+  deleteUndo: "Hapus (bisa diurungkan)",
+  moveUp: "Naikkan di Kotak Masuk atau proyek",
+  pickUp: "Ambil / lepas kartu",
+  moveCard: "Pindahkan kartu yang diambil",
+  putBack: "Kembalikan",
+  syntax: [
+    ["besok jam 5 sore", "tanggal dan waktu"],
+    ["jumat", "Jumat berikutnya"],
+    ["setiap senin", "berulang"],
+    ["p1", "prioritas"],
+    ["#rumah", "proyek"],
+    ["@telepon", "label"],
+    ["~45m", "perkiraan"],
+    ['"Mei"', "tanda kutip menjaga kata apa adanya"],
+  ],
+};
+export default keys;

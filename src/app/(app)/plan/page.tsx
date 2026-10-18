@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
+import { localizedTitle } from "@/i18n/server";
 import { PlanView } from "@/components/day/day-flows";
 
-export const metadata: Metadata = { title: "Plan your day" };
+export const generateMetadata = localizedTitle((t) => t.day.planTitle);
 
 export default function Page() {
   return <PlanView />;

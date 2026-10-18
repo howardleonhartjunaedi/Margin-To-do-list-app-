@@ -96,6 +96,8 @@ export interface Settings {
   emailEnabled: boolean;
   digestEnabled: boolean;
   digestTime: string;
+  locale: string | null;
+  aiEnabled: boolean;
 }
 
 export type View =

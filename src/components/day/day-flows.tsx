@@ -13,17 +13,19 @@ import { Button } from "@/components/ui/button";
 import { TaskCheckbox } from "@/components/ui/checkbox";
 import { Icon } from "@/components/ui/icon";
 import { Input, Textarea } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/states";
+import { Skeleton, TaskRowSkeleton } from "@/components/ui/states";
 import { duration, ease, spring } from "@/design/motion";
 import { cn } from "@/lib/cn";
 import { truncate, useProjects, useTaskActions, useTasks } from "@/lib/data";
 import { useDay, useSaveDay, useStats } from "@/lib/data-productivity";
-import { addDays, formatDue, fromISODate } from "@/lib/dates";
+import { addDays, formatDate, formatDue } from "@/lib/dates";
 import { minutesLabel } from "@/lib/focus";
 import { projectDot } from "@/lib/project-colors";
 import type { Task, View } from "@/lib/types";
+import { useT } from "@/i18n/client";
+import { m } from "@/i18n/catalogs";
 
-const LONG = new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long" });
+const LONG: Intl.DateTimeFormatOptions = { weekday: "long", day: "numeric", month: "long" };
 const exitRow = { opacity: 0, x: 24, transition: { duration: duration.base, ease: ease.exit } };
 
 function Step({ n, title, sub, children }: { n: number; title: string; sub?: string; children: React.ReactNode }) {
@@ -43,7 +45,14 @@ function Step({ n, title, sub, children }: { n: number; title: string; sub?: str
 
 function Row({ t, children, project }: { t: Task; children: React.ReactNode; project?: { name: string; color: string } }) {
   return (
-    <motion.li layout="position" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={exitRow} transition={spring.pop} className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line py-2.5">
+    <motion.li
+      layout="position"
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={exitRow}
+      transition={spring.pop}
+      className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line py-2.5"
+    >
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm text-ink">{t.title}</p>
         <p className="flex items-center gap-2 font-mono text-2xs text-ink-3">
@@ -75,9 +84,14 @@ export function PlanView() {
   const todayView = useMemo<View>(() => ({ kind: "today", today }), [today]);
   const inboxView = useMemo<View>(() => ({ kind: "inbox" }), []);
   const soonView = useMemo<View>(() => ({ kind: "upcoming", today, to: addDays(today, 8) }), [today]);
-  const todays = (useTasks(todayView).data ?? []).filter((t) => !t.completedAt);
-  const inbox = (useTasks(inboxView).data ?? []).filter((t) => !t.completedAt && !t.dueDate);
-  const soon = (useTasks(soonView).data ?? []).filter((t) => !t.completedAt && t.dueDate! > today);
+  const qToday = useTasks(todayView);
+  const qInbox = useTasks(inboxView);
+  const qSoon = useTasks(soonView);
+  // The steps depend on all three lists; showing them as each arrives makes the page jump.
+  const loading = qToday.isPending || qInbox.isPending || qSoon.isPending;
+  const todays = (qToday.data ?? []).filter((t) => !t.completedAt);
+  const inbox = (qInbox.data ?? []).filter((t) => !t.completedAt && !t.dueDate);
+  const soon = (qSoon.data ?? []).filter((t) => !t.completedAt && t.dueDate! > today);
   const overdue = todays.filter((t) => t.dueDate! < today);
   const planned = todays.filter((t) => t.dueDate === today);
 
@@ -97,100 +111,125 @@ export function PlanView() {
   const estimated = planned.reduce((n, t) => n + (t.estimateMinutes ?? 0), 0);
   const unestimated = planned.filter((t) => !t.estimateMinutes).length;
   const load = capacity ? estimated / capacity : 0;
+  const t = useT().day;
+  const todayLabel = { date: today, label: q[0].label };
+  const somedayLabel = { date: null, label: q[4].label };
 
   return (
     <>
-      <ViewHeader title="Plan your day" sub={LONG.format(fromISODate(today))} />
+      <ViewHeader title={t.planTitle} sub={formatDate(today, LONG)} />
 
-      {overdue.length > 0 && (
-        <Step n={1} title="Yesterday’s leftovers" sub="Decide where each one goes. Nothing is lost by moving it.">
-          <ul>
-            <AnimatePresence initial={false}>
-              {overdue.map((t) => (
-                <Row key={t.id} t={t} project={pOf(t)}>
-                  <Button size="sm" variant="secondary" onClick={() => move(t, { date: today, label: "today" })}>
-                    Today
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => move(t, tomorrow)}>
-                    Tomorrow
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => move(t, nextWeek)}>
-                    Next week
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => move(t, { date: null, label: "no date" })}>
-                    Someday
-                  </Button>
-                </Row>
+      {loading ? (
+        <TaskRowSkeleton rows={6} />
+      ) : (
+        <>
+          {overdue.length > 0 && (
+            <Step n={1} title={t.leftovers} sub={t.leftoversSub}>
+              <ul>
+                <AnimatePresence initial={false}>
+                  {overdue.map((task) => (
+                    <Row key={task.id} t={task} project={pOf(task)}>
+                      <Button size="sm" variant="secondary" onClick={() => move(task, todayLabel)}>
+                        {t.today}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => move(task, tomorrow)}>
+                        {t.tomorrow}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => move(task, nextWeek)}>
+                        {t.nextWeek}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => move(task, somedayLabel)}>
+                        {t.someday}
+                      </Button>
+                    </Row>
+                  ))}
+                </AnimatePresence>
+              </ul>
+            </Step>
+          )}
+
+          <Step n={overdue.length ? 2 : 1} title={t.pick} sub={t.pickSub}>
+            <ul>
+              <AnimatePresence initial={false}>
+                {[...inbox.slice(0, 6), ...soon.slice(0, 6)].map((task) => (
+                  <Row key={task.id} t={task} project={pOf(task)}>
+                    {task.dueDate && <span className="self-center font-mono text-2xs text-ink-3">{formatDue(task.dueDate, today)}</span>}
+                    <Button size="sm" variant="secondary" onClick={() => move(task, todayLabel)}>
+                      <Icon icon={Plus} size="xs" /> {t.today}
+                    </Button>
+                  </Row>
+                ))}
+              </AnimatePresence>
+              {!inbox.length && !soon.length && <li className="py-3 text-sm text-ink-3">{t.nothingWaiting}</li>}
+            </ul>
+          </Step>
+
+          <Step n={overdue.length ? 3 : 2} title={t.howMuchTime} sub={t.howMuchTimeSub}>
+            <div className="flex flex-wrap gap-1.5">
+              {[120, 240, 360, 480].map((m) => (
+                <button
+                  key={m}
+                  aria-pressed={capacity === m}
+                  onClick={() => setCapacity(m)}
+                  className={cn(
+                    "h-8 rounded-sm px-3 text-sm transition-colors duration-(--dur-fast)",
+                    capacity === m ? "bg-ink text-bg" : "bg-sunken text-ink-2 hover:text-ink",
+                  )}
+                >
+                  {t.hours(m / 60)}
+                </button>
               ))}
-            </AnimatePresence>
-          </ul>
-        </Step>
-      )}
+            </div>
+            <div className="mt-4">
+              <div
+                className="h-2 overflow-hidden rounded-sm bg-sunken"
+                role="meter"
+                aria-valuemin={0}
+                aria-valuemax={capacity ?? 0}
+                aria-valuenow={estimated}
+                aria-label={t.plannedTime}
+              >
+                <motion.div
+                  className={cn("h-full origin-left rounded-sm", load > 1.1 ? "bg-danger" : load > 0.9 ? "bg-warning" : "bg-accent")}
+                  initial={false}
+                  animate={{ scaleX: capacity ? Math.min(1, load) : 0 }}
+                  transition={spring.layout}
+                />
+              </div>
+              <p className="mt-2 text-sm text-ink-2">
+                {t.forToday(planned.length)}
+                {estimated > 0 && t.estimated(minutesLabel(estimated))}
+                {capacity && t.of(minutesLabel(capacity))}
+                {unestimated > 0 && <span className="text-ink-3">{t.withoutEstimate(unestimated)}</span>}
+              </p>
+              {load > 1.1 && <p className="mt-1 text-sm text-danger">{t.overCapacity}</p>}
+            </div>
+          </Step>
 
-      <Step n={overdue.length ? 2 : 1} title="Pick what matters today" sub="From your Inbox and the next few days. Today has what’s already due.">
-        <ul>
-          <AnimatePresence initial={false}>
-            {[...inbox.slice(0, 6), ...soon.slice(0, 6)].map((t) => (
-              <Row key={t.id} t={t} project={pOf(t)}>
-                {t.dueDate && <span className="self-center font-mono text-2xs text-ink-3">{formatDue(t.dueDate, today)}</span>}
-                <Button size="sm" variant="secondary" onClick={() => move(t, { date: today, label: "today" })}>
-                  <Icon icon={Plus} size="xs" /> Today
-                </Button>
-              </Row>
-            ))}
-          </AnimatePresence>
-          {!inbox.length && !soon.length && <li className="py-3 text-sm text-ink-3">Nothing waiting. Your Inbox is clear and the next week is quiet.</li>}
-        </ul>
-      </Step>
-
-      <Step n={overdue.length ? 3 : 2} title="How much time do you have?" sub="For tasks, not meetings. Add estimates with ~30m in quick add.">
-        <div className="flex flex-wrap gap-1.5">
-          {[120, 240, 360, 480].map((m) => (
-            <button
-              key={m}
-              aria-pressed={capacity === m}
-              onClick={() => setCapacity(m)}
-              className={cn("h-8 rounded-sm px-3 text-sm transition-colors duration-(--dur-fast)", capacity === m ? "bg-ink text-bg" : "bg-sunken text-ink-2 hover:text-ink")}
-            >
-              {m / 60} hours
-            </button>
-          ))}
-        </div>
-        <div className="mt-4">
-          <div className="h-2 overflow-hidden rounded-sm bg-sunken" role="meter" aria-valuemin={0} aria-valuemax={capacity ?? 0} aria-valuenow={estimated} aria-label="Planned time">
-            <motion.div
-              className={cn("h-full origin-left rounded-sm", load > 1.1 ? "bg-danger" : load > 0.9 ? "bg-warning" : "bg-accent")}
-              initial={false}
-              animate={{ scaleX: capacity ? Math.min(1, load) : 0 }}
-              transition={spring.layout}
+          <Step n={overdue.length ? 4 : 3} title={t.oneThing}>
+            <Input
+              value={intention}
+              onChange={(e) => setIntention(e.target.value)}
+              placeholder={t.intentionPlaceholder}
+              aria-label={t.intention}
+              maxLength={200}
             />
-          </div>
-          <p className="mt-2 text-sm text-ink-2">
-            {planned.length} {planned.length === 1 ? "task" : "tasks"} for today
-            {estimated > 0 && <> · {minutesLabel(estimated)} estimated</>}
-            {capacity && <> of {minutesLabel(capacity)}</>}
-            {unestimated > 0 && <span className="text-ink-3"> · {unestimated} without an estimate</span>}
-          </p>
-          {load > 1.1 && <p className="mt-1 text-sm text-danger">That’s more than the time you have. Move something to tomorrow?</p>}
-        </div>
-      </Step>
-
-      <Step n={overdue.length ? 4 : 3} title="One thing that would make today good">
-        <Input value={intention} onChange={(e) => setIntention(e.target.value)} placeholder="Ship the budget draft before lunch" aria-label="Today’s intention" maxLength={200} />
-        <div className="mt-6">
-          <Button
-            variant="primary"
-            size="lg"
-            magnetic
-            onClick={async () => {
-              await save({ intention: intention.trim(), capacityMinutes: capacity, planned: true });
-              router.push("/today");
-            }}
-          >
-            Start the day <Icon icon={ArrowRight} />
-          </Button>
-        </div>
-      </Step>
+            <div className="mt-6">
+              <Button
+                variant="primary"
+                size="lg"
+                magnetic
+                onClick={async () => {
+                  await save({ intention: intention.trim(), capacityMinutes: capacity, planned: true });
+                  router.push("/today");
+                }}
+              >
+                {t.startDay} <Icon icon={ArrowRight} />
+              </Button>
+            </div>
+          </Step>
+        </>
+      )}
     </>
   );
 }
@@ -213,23 +252,24 @@ export function ReviewView() {
   const q = quickDates(today);
   const done = day.data?.completed ?? [];
   const focus = stats?.focusMinutesByDay[today] ?? 0;
+  const t = useT().day;
 
   if (closed)
     return (
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: duration.slow, ease: ease.enter }} className="py-16">
-        <p className="font-display text-4xl text-ink">That’s the day.</p>
-        <p className="mt-3 text-base text-ink-2">Rest well. Tomorrow’s list is ready when you are.</p>
+        <p className="font-display text-4xl text-ink">{t.thatsTheDay}</p>
+        <p className="mt-3 text-base text-ink-2">{t.restWell}</p>
         <Button asChild variant="ghost" className="mt-6">
-          <Link href="/upcoming">Look at tomorrow</Link>
+          <Link href="/upcoming">{t.lookTomorrow}</Link>
         </Button>
       </motion.div>
     );
 
   return (
     <>
-      <ViewHeader title="Review your day" sub={LONG.format(fromISODate(today))} />
+      <ViewHeader title={t.reviewTitle} sub={formatDate(today, LONG)} />
 
-      <Step n={1} title="What got done">
+      <Step n={1} title={t.whatGotDone}>
         {day.isPending ? (
           <Skeleton className="h-20" />
         ) : (
@@ -239,18 +279,22 @@ export function ReviewView() {
                 <p className="font-sans text-5xl font-semibold tracking-tight text-ink">
                   <CountUp value={done.length} />
                 </p>
-                <p className="text-xs text-ink-2">{done.length === 1 ? "task" : "tasks"} completed</p>
+                <p className="text-xs text-ink-2">{t.completed(done.length)}</p>
               </div>
               {focus > 0 && (
                 <div>
                   <p className="font-sans text-3xl font-semibold tracking-tight text-ink">{minutesLabel(focus)}</p>
-                  <p className="text-xs text-ink-2">focused</p>
+                  <p className="text-xs text-ink-2">{t.focused}</p>
                 </div>
               )}
             </div>
             {day.data?.intention && (
               <p className="mt-5 text-sm text-ink-2">
-                This morning you said: <span className="font-display text-base text-ink italic">“{day.data.intention}”</span>
+                {t.youSaid(
+                  <span key="q" className="font-display text-base text-ink italic">
+                    “{day.data.intention}”
+                  </span>,
+                )}
               </p>
             )}
             {done.length > 0 && (
@@ -267,32 +311,42 @@ export function ReviewView() {
         )}
       </Step>
 
-      <Step n={2} title="Still open" sub={open.length ? "Give each one a next step." : undefined}>
+      <Step n={2} title={t.stillOpen} sub={open.length ? t.nextStep : undefined}>
         <ul>
           <AnimatePresence initial={false}>
-            {open.map((t) => (
-              <Row key={t.id} t={t}>
+            {open.map((task) => (
+              <Row key={task.id} t={task}>
                 <span className="mr-1 self-center">
-                  <TaskCheckbox checked={false} priority={t.priority} onCheckedChange={() => void actions.complete(t)} aria-label={`Complete: ${t.title}`} />
+                  <TaskCheckbox
+                    checked={false}
+                    priority={task.priority}
+                    onCheckedChange={() => void actions.complete(task)}
+                    aria-label={`${m().item.complete}: ${task.title}`}
+                  />
                 </span>
-                <Button size="sm" variant="secondary" onClick={() => void actions.reschedule(t, q[1].date, "tomorrow")}>
-                  Tomorrow
+                <Button size="sm" variant="secondary" onClick={() => void actions.reschedule(task, q[1].date, q[1].label.toLowerCase())}>
+                  {t.tomorrow}
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => void actions.reschedule(t, q[3].date, "next week")}>
-                  Next week
+                <Button size="sm" variant="ghost" onClick={() => void actions.reschedule(task, q[3].date, q[3].label.toLowerCase())}>
+                  {t.nextWeek}
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => void actions.reschedule(t, null, "no date")}>
-                  Someday
+                <Button size="sm" variant="ghost" onClick={() => void actions.reschedule(task, null, q[4].label.toLowerCase())}>
+                  {t.someday}
                 </Button>
               </Row>
             ))}
           </AnimatePresence>
-          {!open.length && <li className="py-3 text-sm text-ink-3">Nothing left over. A clean finish.</li>}
+          {!open.length && <li className="py-3 text-sm text-ink-3">{t.cleanFinish}</li>}
         </ul>
       </Step>
 
-      <Step n={3} title="A line for future you" sub="What went well? What got in the way? Only you see this.">
-        <Textarea value={reflection} onChange={(e) => setReflection(e.target.value)} placeholder="The morning block worked. Meetings ate the afternoon." aria-label="Reflection" />
+      <Step n={3} title={t.futureYou} sub={t.futureYouSub}>
+        <Textarea
+          value={reflection}
+          onChange={(e) => setReflection(e.target.value)}
+          placeholder={t.reflectionPlaceholder}
+          aria-label={t.reflection}
+        />
         <div className="mt-6">
           <Button
             variant="primary"
@@ -303,7 +357,7 @@ export function ReviewView() {
               if (saved) setClosed(true);
             }}
           >
-            Close the day <Icon icon={Moon} />
+            {t.closeDay} <Icon icon={Moon} />
           </Button>
         </div>
       </Step>
@@ -318,6 +372,7 @@ export function DayPrompt() {
   const { today } = useAppUI();
   const day = useDay(today).data;
   const [hour, setHour] = useState<number | null>(null);
+  const tr = useT();
   useEffect(() => setHour(new Date().getHours()), []);
   if (!day || hour === null) return null;
   const showPlan = !day.plannedAt && hour < 14;
@@ -327,20 +382,21 @@ export function DayPrompt() {
     <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2">
       {day.intention && (
         <p className="min-w-0 flex-1 text-sm text-ink-2">
-          Today: <span className="font-display text-base text-ink italic">{truncate(day.intention, 90)}</span>
+          {tr.day.todayIntention}
+          <span className="font-display text-base text-ink italic">{truncate(day.intention, 90)}</span>
         </p>
       )}
       {showPlan && (
         <Button asChild size="sm" variant="secondary">
           <Link href="/plan">
-            <Icon icon={Sunrise} /> Plan your day
+            <Icon icon={Sunrise} /> {tr.day.planTitle}
           </Link>
         </Button>
       )}
       {showReview && (
         <Button asChild size="sm" variant="secondary">
           <Link href="/review">
-            <Icon icon={Moon} /> Review your day
+            <Icon icon={Moon} /> {tr.day.reviewTitle}
           </Link>
         </Button>
       )}

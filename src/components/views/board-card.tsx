@@ -2,7 +2,7 @@
 
 import { Repeat } from "lucide-react";
 import { motion, useMotionValue, useSpring, useTransform } from "motion/react";
-import { useCursorEnabled } from "@/components/cursor/custom-cursor";
+import { useCursorEnabled } from "@/components/cursor/use-cursor-enabled";
 import { TaskCheckbox } from "@/components/ui/checkbox";
 import { Icon } from "@/components/ui/icon";
 import { PriorityFlag } from "@/components/ui/priority";
@@ -11,6 +11,8 @@ import { cn } from "@/lib/cn";
 import { formatDue } from "@/lib/dates";
 import { projectDot } from "@/lib/project-colors";
 import type { Project, Task } from "@/lib/types";
+import { useT } from "@/i18n/client";
+import { m } from "@/i18n/catalogs";
 
 const MAX_TILT = 3;
 
@@ -34,6 +36,7 @@ export function BoardCard({
   onOpen?: () => void;
   onComplete?: () => void;
 }) {
+  const t = useT().item;
   const tilt = useCursorEnabled() && !lifted;
   const px = useMotionValue(0.5);
   const py = useMotionValue(0.5);
@@ -66,16 +69,15 @@ export function BoardCard({
             <TaskCheckbox
               checked={false}
               priority={task.priority}
-              className="size-4"
               onCheckedChange={() => onComplete?.()}
-              aria-label={`Complete: ${task.title}`}
+              aria-label={`${t.complete}: ${task.title}`}
             />
           </div>
           <button
             type="button"
             onClick={onOpen}
             onPointerDown={(e) => e.stopPropagation()}
-            data-cursor-label="Open"
+            data-cursor-label={t.open}
             className="min-w-0 flex-1 text-left text-sm leading-5 break-words text-ink"
           >
             {task.title}
@@ -86,7 +88,7 @@ export function BoardCard({
             {task.dueDate && (
               <span className={cn("inline-flex items-center gap-1 font-mono text-2xs", overdue && "text-danger")}>
                 {formatDue(task.dueDate, today, task.dueTime)}
-                {task.recurrence && <Icon icon={Repeat} size="xs" label="Repeats" />}
+                {task.recurrence && <Icon icon={Repeat} size="xs" label={t.repeats} />}
               </span>
             )}
             {showPriority && task.priority < 4 && <PriorityFlag priority={task.priority} />}

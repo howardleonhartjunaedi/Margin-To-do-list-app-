@@ -5,6 +5,8 @@ import { useCallback } from "react";
 import { toast, toastWithUndo } from "@/components/ui/toast";
 import { api, ApiError } from "./api";
 import { formatDue, todayISO } from "./dates";
+import { enqueue, isOffline, type OutboxOp } from "./outbox";
+import { m } from "@/i18n/catalogs";
 import { advanceRecurring } from "./time/recurrence";
 import type { Project, ReminderInfo, Settings, Task, View } from "./types";
 import type { CreateTaskInput, UpdateTaskInput } from "./validation";
@@ -136,12 +138,71 @@ function applyPatch(t: Task, p: UpdateTaskInput): Task {
   return next;
 }
 
+/** What a new task looks like before the server has answered. */
+function draftTask(input: CreateTaskInput & { id: string }): Task {
+  return {
+    id: input.id,
+    createdBy: currentUserId,
+    projectId: input.projectId ?? null,
+    parentId: input.parentId ?? null,
+    assigneeId: input.assigneeId ?? null,
+    title: input.title,
+    notes: input.notes ?? "",
+    priority: input.priority ?? 4,
+    startDate: input.startDate ?? null,
+    dueDate: input.dueDate ?? null,
+    dueTime: input.dueTime ?? null,
+    recurrence: input.recurrence ?? null,
+    estimateMinutes: input.estimateMinutes ?? null,
+    sortKey: "￿", // sorts last until the server assigns the real key
+    completedAt: null,
+    createdAt: new Date().toISOString(),
+    labels: input.labels ?? [],
+    subtaskCount: 0,
+    subtaskDone: 0,
+    commentCount: 0,
+  };
+}
+
 function refreshCounts(qc: QueryClient) {
   qc.invalidateQueries({ queryKey: ["counts"] });
   qc.invalidateQueries({ queryKey: keys.projects });
 }
 
-const failed = (e: unknown) => toast(e instanceof ApiError ? e.message : "Something went wrong. Your change wasn’t saved.");
+/**
+ * Lays changes still waiting in the outbox over freshly fetched data, so that after an offline
+ * reload the lists still show them (the cached responses predate the changes).
+ */
+export function replayOutbox(qc: QueryClient, ops: OutboxOp[]) {
+  const findCached = (id: string) =>
+    qc.getQueryData<Detail>(keys.task(id))?.task ??
+    qc
+      .getQueriesData<Task[]>({ queryKey: ["tasks"] })
+      .flatMap(([, l]) => l ?? [])
+      .find((t) => t.id === id);
+  const latest = new Map<string, { task: Task; deleted: boolean }>();
+  for (const op of ops) {
+    if (op.kind === "createTask") latest.set(op.id, { task: draftTask(op.input), deleted: false });
+    else {
+      const base = latest.get(op.id)?.task ?? findCached(op.id);
+      if (base) latest.set(op.id, { task: applyPatch(base, op.patch), deleted: op.patch.deleted === true });
+    }
+  }
+  for (const { task, deleted } of latest.values()) writeEverywhere(qc, task, deleted);
+}
+
+let toldOffline = false;
+/** Once per offline stretch: say where the change went. OfflineSync resets it on reconnect. */
+function savedOffline() {
+  if (toldOffline) return;
+  toldOffline = true;
+  toast(m().common.savedOffline);
+}
+export const resetOfflineNotice = () => {
+  toldOffline = false;
+};
+
+const failed = (e: unknown) => toast(e instanceof ApiError ? e.message : m().common.somethingWrong);
 
 /* ------------------------------ Task actions ------------------------------ */
 
@@ -168,6 +229,11 @@ export function useTaskActions() {
           qc.invalidateQueries({ queryKey: keys.task(t.id) });
         return saved;
       } catch (e) {
+        if (isOffline(e)) {
+          enqueue({ kind: "updateTask", id: t.id, patch });
+          savedOffline();
+          return optimistic;
+        }
         restore();
         failed(e);
       }
@@ -178,28 +244,7 @@ export function useTaskActions() {
   const create = useCallback(
     async (input: CreateTaskInput & { id: string }) => {
       const restore = snapshot(qc);
-      const optimistic: Task = {
-        id: input.id,
-        createdBy: currentUserId,
-        projectId: input.projectId ?? null,
-        parentId: input.parentId ?? null,
-        assigneeId: input.assigneeId ?? null,
-        title: input.title,
-        notes: input.notes ?? "",
-        priority: input.priority ?? 4,
-        startDate: input.startDate ?? null,
-        dueDate: input.dueDate ?? null,
-        dueTime: input.dueTime ?? null,
-        recurrence: input.recurrence ?? null,
-        estimateMinutes: input.estimateMinutes ?? null,
-        sortKey: "￿", // sorts last until the server assigns the real key
-        completedAt: null,
-        createdAt: new Date().toISOString(),
-        labels: input.labels ?? [],
-        subtaskCount: 0,
-        subtaskDone: 0,
-        commentCount: 0,
-      };
+      const optimistic = draftTask(input);
       writeEverywhere(qc, optimistic);
       try {
         const saved = await api.createTask(input);
@@ -207,6 +252,11 @@ export function useTaskActions() {
         refreshCounts(qc);
         return saved;
       } catch (e) {
+        if (isOffline(e)) {
+          enqueue({ kind: "createTask", id: input.id, input });
+          savedOffline();
+          return optimistic;
+        }
         restore();
         failed(e);
       }
@@ -220,14 +270,14 @@ export function useTaskActions() {
     complete: (t: Task) =>
       t.recurrence
         ? update(t, { completed: true }, {
-            message: `Done. Next: ${formatDue(advanceRecurring(t.recurrence, t.dueDate, todayISO()), todayISO())}.`,
+            message: m().tasks.doneNext(formatDue(advanceRecurring(t.recurrence, t.dueDate, todayISO()), todayISO())),
             undo: { completed: false, dueDate: t.dueDate, dueTime: t.dueTime },
           })
-        : update(t, { completed: true }, { message: `Completed “${truncate(t.title)}”.`, undo: { completed: false } }),
+        : update(t, { completed: true }, { message: m().tasks.completed(truncate(t.title)), undo: { completed: false } }),
     uncomplete: (t: Task) => update(t, { completed: false }),
-    remove: (t: Task) => update(t, { deleted: true }, { message: `Deleted “${truncate(t.title)}”.`, undo: { deleted: false } }),
+    remove: (t: Task) => update(t, { deleted: true }, { message: m().tasks.deleted(truncate(t.title)), undo: { deleted: false } }),
     reschedule: (t: Task, dueDate: string | null, label: string) =>
-      update(t, { dueDate }, { message: dueDate ? `Moved to ${label}.` : "Removed the date.", undo: { dueDate: t.dueDate, dueTime: t.dueTime } }),
+      update(t, { dueDate }, { message: dueDate ? m().tasks.movedTo(label) : m().tasks.removedDate, undo: { dueDate: t.dueDate, dueTime: t.dueTime } }),
   };
 }
 
@@ -330,7 +380,7 @@ export function useSettingsActions() {
 export async function snoozeReminder(reminderId: string, choice: { minutes: number } | { tomorrowAt: string }, label: string) {
   try {
     await api.snooze(reminderId, choice);
-    toast(`Snoozed — ${label}.`);
+    toast(m().tasks.snoozed(label));
   } catch (e) {
     failed(e);
   }

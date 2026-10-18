@@ -1,4 +1,5 @@
 import { addDays, type ISODate } from "./dates";
+import { numberTag } from "@/i18n/runtime";
 
 /** Every day in [from, to] with its value (0 where the data has none). */
 export function fillDays(from: ISODate, to: ISODate, values: Record<ISODate, number>) {
@@ -34,6 +35,6 @@ export function niceMax(v: number) {
 
 /** 1,284 → "1.3K" from 10,000 up; below that, grouped digits. */
 export function compact(n: number) {
-  if (n >= 10_000) return new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(n);
-  return new Intl.NumberFormat("en").format(Math.round(n));
+  if (n >= 10_000) return new Intl.NumberFormat(numberTag(), { notation: "compact", maximumFractionDigits: 1 }).format(n);
+  return new Intl.NumberFormat(numberTag()).format(Math.round(n));
 }

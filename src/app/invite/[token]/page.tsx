@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import { localizedTitle, serverT } from "@/i18n/server";
 import Link from "next/link";
 import { AcceptInvite } from "@/components/sharing/accept-invite";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { describeInvite } from "@/server/sharing";
 import { projectRole } from "@/server/access";
 import { db } from "@/server/db";
 
-export const metadata: Metadata = { title: "Invitation" };
+export const generateMetadata = localizedTitle((t) => t.invite.title);
 
 export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -15,6 +15,8 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
   const invite = await describeInvite(token);
   const alreadyIn = session && invite ? (await projectRole(db, session.user.id, invite.projectId)) !== null : false;
   const next = encodeURIComponent(`/invite/${token}`);
+  const tr = await serverT();
+  const t = tr.invite;
 
   return (
     <div className="mx-auto flex min-h-dvh max-w-xl flex-col px-4 py-6 sm:px-8">
@@ -24,34 +26,40 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
       <main className="flex flex-1 flex-col justify-center py-12">
         {!invite ? (
           <>
-            <h1 className="font-display text-4xl text-ink">This invitation doesn’t exist.</h1>
-            <p className="mt-3 text-base text-ink-2">The link may be mistyped, or it was revoked. Ask whoever shared it for a new one.</p>
+            <h1 className="font-display text-4xl text-ink">{t.missing}</h1>
+            <p className="mt-3 text-base text-ink-2">{t.missingBody}</p>
           </>
         ) : invite.status !== "open" ? (
           <>
-            <h1 className="font-display text-4xl text-ink">{invite.status === "expired" ? "This invitation has expired." : "This invitation was already used."}</h1>
-            <p className="mt-3 text-base text-ink-2">Ask {invite.inviter} for a new link to “{invite.projectName}”.</p>
+            <h1 className="font-display text-4xl text-ink">{invite.status === "expired" ? t.expired : t.used}</h1>
+            <p className="mt-3 text-base text-ink-2">{t.askFor(invite.inviter, invite.projectName)}</p>
             {session && (
               <Button asChild variant="ghost" className="mt-6 self-start">
-                <Link href={`/project/${invite.projectId}`}>Open the project, if you’re already in it</Link>
+                <Link href={`/project/${invite.projectId}`}>{t.openIfIn}</Link>
               </Button>
             )}
           </>
         ) : (
           <>
-            <p className="font-mono text-2xs tracking-wider text-ink-3 uppercase">Invitation</p>
+            <p className="font-mono text-2xs tracking-wider text-ink-3 uppercase">{t.title}</p>
             <h1 className="mt-3 font-display text-4xl text-ink">
-              {invite.inviter} invited you to <em className="text-accent">{invite.projectName}</em>.
+              {t.invitedYou(
+                invite.inviter,
+                <em key="p" className="text-accent">
+                  {invite.projectName}
+                </em>,
+              )}
             </h1>
             <p className="mt-3 text-base text-ink-2">
-              You’ll join as {/^[aeiou]/.test(invite.role) ? "an" : "a"} {invite.role}.{invite.email ? ` This invitation is for ${invite.email}.` : ""}
+              {t.joinAs(tr.share.roles[invite.role as keyof typeof tr.share.roles] ?? invite.role)}
+              {invite.email ? t.forEmail(invite.email) : ""}
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               {alreadyIn ? (
                 <div className="flex flex-col gap-3">
-                  <p className="text-sm text-ink-2">You’re already a member, so this link is still unused for whoever it’s meant for.</p>
+                  <p className="text-sm text-ink-2">{t.alreadyMember}</p>
                   <Button asChild variant="primary" size="lg" className="self-start">
-                    <Link href={`/project/${invite.projectId}`}>Open the project</Link>
+                    <Link href={`/project/${invite.projectId}`}>{t.open}</Link>
                   </Button>
                 </div>
               ) : session ? (
@@ -59,10 +67,10 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
               ) : (
                 <>
                   <Button asChild variant="primary" size="lg">
-                    <Link href={`/sign-in?next=${next}`}>Sign in to accept</Link>
+                    <Link href={`/sign-in?next=${next}`}>{t.signInToAccept}</Link>
                   </Button>
                   <Button asChild variant="ghost" size="lg">
-                    <Link href={`/sign-up?next=${next}`}>Create an account</Link>
+                    <Link href={`/sign-up?next=${next}`}>{t.createAccount}</Link>
                   </Button>
                 </>
               )}

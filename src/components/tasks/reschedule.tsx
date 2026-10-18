@@ -6,6 +6,7 @@ import { Icon } from "@/components/ui/icon";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { addDays, formatDue, fromISODate, weekdayShort } from "@/lib/dates";
 import { cn } from "@/lib/cn";
+import { m } from "@/i18n/catalogs";
 
 export interface DateChoice {
   date: string | null;
@@ -17,12 +18,13 @@ export function quickDates(today: string): (DateChoice & { icon: typeof Sun; hin
   const dow = fromISODate(today).getDay(); // 0 Sun … 6 Sat
   const saturday = dow === 6 || dow === 0 ? today : addDays(today, 6 - dow); // already the weekend → today
   const monday = addDays(today, ((8 - dow) % 7) || 7);
+  const t = m().quick;
   return [
-    { date: today, label: "Today", icon: Sun, hint: weekdayShort(today) },
-    { date: addDays(today, 1), label: "Tomorrow", icon: Sunrise, hint: weekdayShort(addDays(today, 1)) },
-    { date: saturday, label: "This weekend", icon: Sofa, hint: weekdayShort(saturday) },
-    { date: monday, label: "Next week", icon: CalendarDays, hint: `Mon ${fromISODate(monday).getDate()}` },
-    { date: null, label: "No date", icon: CalendarX2, hint: "" },
+    { date: today, label: t.today, icon: Sun, hint: weekdayShort(today) },
+    { date: addDays(today, 1), label: t.tomorrow, icon: Sunrise, hint: weekdayShort(addDays(today, 1)) },
+    { date: saturday, label: t.weekend, icon: Sofa, hint: weekdayShort(saturday) },
+    { date: monday, label: t.nextWeek, icon: CalendarDays, hint: `${weekdayShort(monday)} ${fromISODate(monday).getDate()}` },
+    { date: null, label: t.noDate, icon: CalendarX2, hint: "" },
   ];
 }
 
@@ -55,7 +57,7 @@ export function DateMenu({
       </div>
       <label className="mt-1 flex items-center gap-2 border-t border-line px-2 pt-2 text-xs text-ink-2">
         <Icon icon={Calendar} className="text-ink-3" />
-        Pick a date
+        {m().quick.pickDate}
         <input
           type="date"
           data-cursor="native"

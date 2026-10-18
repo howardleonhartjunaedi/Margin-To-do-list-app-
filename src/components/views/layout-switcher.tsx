@@ -8,15 +8,16 @@ import { Segmented } from "@/components/ui/segmented";
 import { Tooltip } from "@/components/ui/tooltip";
 import { duration, ease } from "@/design/motion";
 import { canViewTransition, useUrlParam } from "@/lib/view-transition";
+import { useT } from "@/i18n/client";
 
 export type Layout = "list" | "board" | "calendar" | "timeline" | "matrix";
 
-export const LAYOUTS: Record<Layout, { label: string; icon: typeof List; key: string }> = {
-  list: { label: "List", icon: List, key: "L" },
-  board: { label: "Board", icon: Columns3, key: "B" },
-  calendar: { label: "Calendar", icon: CalendarDays, key: "C" },
-  timeline: { label: "Timeline", icon: GanttChart, key: "T" },
-  matrix: { label: "Matrix", icon: Grid2x2, key: "M" },
+export const LAYOUTS: Record<Layout, { icon: typeof List; key: string }> = {
+  list: { icon: List, key: "L" },
+  board: { icon: Columns3, key: "B" },
+  calendar: { icon: CalendarDays, key: "C" },
+  timeline: { icon: GanttChart, key: "T" },
+  matrix: { icon: Grid2x2, key: "M" },
 };
 
 export function useLayout(available: Layout[]) {
@@ -26,21 +27,22 @@ export function useLayout(available: Layout[]) {
 }
 
 export function LayoutSwitcher({ value, onChange, available }: { value: Layout; onChange: (l: Layout) => void; available: Layout[] }) {
+  const t = useT().layout;
   if (available.length < 2) return null;
   return (
     <Segmented<Layout>
-      label="Layout"
+      label={t.layout}
       size="sm"
       value={value}
       onValueChange={onChange}
       options={available.map((l) => ({
         value: l,
-        title: `${LAYOUTS[l].label} (V then ${LAYOUTS[l].key})`,
+        title: t.shortcut(t.names[l], LAYOUTS[l].key),
         label: (
-          <Tooltip content={LAYOUTS[l].label} shortcut={["V", LAYOUTS[l].key]}>
+          <Tooltip content={t.names[l]} shortcut={["V", LAYOUTS[l].key]}>
             <span className="inline-flex items-center gap-1.5">
               <Icon icon={LAYOUTS[l].icon} size="xs" />
-              <span className="max-sm:sr-only">{LAYOUTS[l].label}</span>
+              <span className="max-sm:sr-only">{t.names[l]}</span>
             </span>
           </Tooltip>
         ),

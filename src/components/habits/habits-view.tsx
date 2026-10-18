@@ -21,10 +21,12 @@ import { EmptyState, ErrorState, Skeleton } from "@/components/ui/states";
 import { duration, ease, spring } from "@/design/motion";
 import { cn } from "@/lib/cn";
 import { useHabitActions, useHabits } from "@/lib/data-productivity";
-import { addDays, formatDue, fromISODate } from "@/lib/dates";
+import { addDays, formatDue, formatDate, fromISODate } from "@/lib/dates";
 import { checksThisWeek, describeTarget, keptRate, streak, weekStart } from "@/lib/habits";
 import { PROJECT_COLORS, projectDot } from "@/lib/project-colors";
 import type { Habit, ProjectColor } from "@/lib/types";
+import { m } from "@/i18n/catalogs";
+import { useT } from "@/i18n/client";
 
 const FILL: Record<ProjectColor, string> = {
   ink: "bg-ink-2",
@@ -41,15 +43,17 @@ export function HabitsView() {
   const [adding, setAdding] = useState(false);
   const habits = q.data ?? [];
   const keptToday = habits.filter((h) => h.checks.includes(today)).length;
+  const tr = useT();
+  const t = tr.habits;
 
   return (
     <>
       <ViewHeader
-        title="Habits"
-        sub={habits.length ? `${keptToday} of ${habits.length} done today` : undefined}
+        title={tr.nav.habits}
+        sub={habits.length ? t.sub(keptToday, habits.length) : undefined}
         actions={
           <Button variant="secondary" size="sm" onClick={() => setAdding(true)}>
-            <Icon icon={Plus} /> New habit
+            <Icon icon={Plus} /> {t.newHabit}
           </Button>
         }
       />
@@ -66,11 +70,11 @@ export function HabitsView() {
       ) : habits.length === 0 ? (
         <EmptyState
           mark="↻"
-          title="No habits yet."
-          body="Small things you want to do regularly — stretch, read, call home. Tick them off each day; streaks build themselves."
+          title={t.empty}
+          body={t.emptyBody}
           action={
             <Button size="sm" onClick={() => setAdding(true)}>
-              Add your first habit
+              {t.addFirst}
             </Button>
           }
         />
@@ -99,7 +103,7 @@ function WeekHeader({ today }: { today: string }) {
       <div className="flex gap-1">
         {lastDays(today).map((d) => (
           <span key={d} className={cn("w-8 text-center font-mono text-2xs", d === today ? "text-accent" : "text-ink-3")}>
-            {"SMTWTFS"[fromISODate(d).getDay()]}
+            {formatDate(d, { weekday: "narrow" })}
             <span className="block">{Number(d.slice(8))}</span>
           </span>
         ))}
@@ -118,6 +122,7 @@ function HabitRow({ habit, today }: { habit: Habit; today: string }) {
   const s = streak(checks, habit.targetPerWeek, today);
   const rate = keptRate(checks, habit.targetPerWeek, today, habit.createdOn);
   const week = checksThisWeek(checks, today);
+  const t = useT().habits;
 
   return (
     <motion.li
@@ -137,12 +142,8 @@ function HabitRow({ habit, today }: { habit: Habit; today: string }) {
           </button>
           <p className="mt-0.5 pl-4 font-mono text-2xs text-ink-3">
             {describeTarget(habit.targetPerWeek)}
-            {habit.targetPerWeek < 7 && ` · ${week}/${habit.targetPerWeek} this week`}
-            <span className="sm:hidden">
-              {" "}
-              · {s.count} {s.unit}
-              {s.count === 1 ? "" : "s"}
-            </span>
+            {habit.targetPerWeek < 7 && t.thisWeek(week, habit.targetPerWeek)}
+            <span className="sm:hidden"> · {t.streak(s.count, s.unit)}</span>
           </p>
         </div>
         <div className="flex gap-1">
@@ -152,30 +153,29 @@ function HabitRow({ habit, today }: { habit: Habit; today: string }) {
         </div>
         <div className="hidden items-center justify-end gap-1 sm:flex">
           <div className="text-right">
-            <p className="font-mono text-xs text-ink" title="Current streak">
-              {s.count} {s.unit}
-              {s.count === 1 ? "" : "s"}
+            <p className="font-mono text-xs text-ink" title={t.currentStreak}>
+              {t.streak(s.count, s.unit)}
             </p>
-            <p className="font-mono text-2xs text-ink-3" title="Kept over the last four weeks">
-              {rate === null ? "new" : `${Math.round(rate * 100)}% kept`}
+            <p className="font-mono text-2xs text-ink-3" title={t.keptRecently}>
+              {rate === null ? t.isNew : t.kept(Math.round(rate * 100))}
             </p>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon-sm" aria-label={`Actions for ${habit.name}`} className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
+              <Button variant="ghost" size="icon-sm" aria-label={t.actionsFor(habit.name)} className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100">
                 <Icon icon={MoreHorizontal} />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem icon={<Icon icon={Pencil} />} onSelect={() => setEditing(true)}>
-                Edit…
+                {t.editMenu}
               </DropdownMenuItem>
               <DropdownMenuItem icon={<Icon icon={Archive} />} onSelect={() => void actions.archive(habit)}>
-                Archive
+                {t.archive}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem tone="danger" icon={<Icon icon={Trash2} />} onSelect={() => setDeleting(true)}>
-                Delete…
+                {t.deleteMenu}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -194,13 +194,13 @@ function HabitRow({ habit, today }: { habit: Habit; today: string }) {
             <Heatmap habit={habit} checks={checks} today={today} />
             <div className="mt-3 flex gap-2 sm:hidden">
               <Button size="sm" variant="ghost" onClick={() => setEditing(true)}>
-                Edit
+                {t.edit}
               </Button>
               <Button size="sm" variant="ghost" onClick={() => void actions.archive(habit)}>
-                Archive
+                {t.archive}
               </Button>
               <Button size="sm" variant="ghost" className="text-danger" onClick={() => setDeleting(true)}>
-                Delete
+                {t.delete}
               </Button>
             </div>
           </motion.div>
@@ -209,19 +209,19 @@ function HabitRow({ habit, today }: { habit: Habit; today: string }) {
 
       <HabitDialog open={editing} onOpenChange={setEditing} habit={habit} />
       <Dialog open={deleting} onOpenChange={setDeleting}>
-        <DialogContent title={`Delete “${habit.name}”?`} description="Its whole history goes too. This can’t be undone — archive it instead to keep the record.">
+        <DialogContent title={t.deleteTitle(habit.name)} description={t.deleteBody}>
           <DialogFooter>
             <DialogClose asChild>
-              <Button variant="ghost">Keep it</Button>
+              <Button variant="ghost">{t.keep}</Button>
             </DialogClose>
             <DialogClose asChild>
               <Button onClick={() => void actions.archive(habit)}>
-                <Icon icon={Archive} /> Archive
+                <Icon icon={Archive} /> {t.archive}
               </Button>
             </DialogClose>
             <DialogClose asChild>
               <Button variant="danger" onClick={() => void actions.remove(habit)}>
-                Delete forever
+                {t.deleteForever}
               </Button>
             </DialogClose>
           </DialogFooter>
@@ -268,16 +268,17 @@ function Heatmap({ habit, checks, today }: { habit: Habit; checks: Set<string>; 
   const start = addDays(weekStart(today), -(WEEKS - 1) * 7);
   const weeks = Array.from({ length: WEEKS }, (_, w) => Array.from({ length: 7 }, (_, d) => addDays(start, w * 7 + d)));
   const total = habit.checks.filter((d) => d >= start).length;
+  const t = useT().habits;
   return (
     <figure>
       <div className="overflow-x-auto" data-lenis-prevent>
-        <div className="flex gap-[3px]" role="img" aria-label={`${habit.name}: done on ${total} days in the last six months`}>
+        <div className="flex gap-[3px]" role="img" aria-label={t.heatmap(habit.name, total)}>
           {weeks.map((days, w) => (
             <div key={w} className="flex flex-col gap-[3px]">
               {days.map((d) => (
                 <span
                   key={d}
-                  title={`${formatDue(d, today)}${checks.has(d) ? " — done" : ""}`}
+                  title={`${formatDue(d, today)}${checks.has(d) ? t.doneSuffix : ""}`}
                   className={cn(
                     "size-2.5",
                     d > today ? "bg-transparent" : checks.has(d) ? FILL[habit.color] : d < habit.createdOn ? "bg-sunken/50" : "bg-sunken",
@@ -289,7 +290,7 @@ function Heatmap({ habit, checks, today }: { habit: Habit; checks: Set<string>; 
         </div>
       </div>
       <figcaption className="mt-2 font-mono text-2xs text-ink-3">
-        {total} {total === 1 ? "day" : "days"} in the last six months
+        {t.daysIn6Months(total)}
       </figcaption>
     </figure>
   );
@@ -301,14 +302,16 @@ function HabitDialog({ open, onOpenChange, habit }: { open: boolean; onOpenChang
   const [target, setTarget] = useState(habit?.targetPerWeek ?? 7);
   const [color, setColor] = useState<ProjectColor>(habit?.color ?? "success");
   const [error, setError] = useState<string>();
+  const tr = useT();
+  const t = tr.habits;
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent title={habit ? "Edit habit" : "New habit"}>
+      <DialogContent title={habit ? t.editHabit : t.newHabit}>
         <form
           className="flex flex-col gap-5"
           onSubmit={(e) => {
             e.preventDefault();
-            if (!name.trim()) return setError("A habit needs a name.");
+            if (!name.trim()) return setError(t.needsName);
             onOpenChange(false);
             if (habit) void actions.update(habit.id, { name: name.trim(), targetPerWeek: target, color });
             else {
@@ -317,32 +320,32 @@ function HabitDialog({ open, onOpenChange, habit }: { open: boolean; onOpenChang
             }
           }}
         >
-          <Field label="Name" error={error}>
-            {(p) => <Input {...p} autoFocus value={name} placeholder="Stretch for ten minutes" onChange={(e) => (setName(e.target.value), setError(undefined))} />}
+          <Field label={t.name} error={error}>
+            {(p) => <Input {...p} autoFocus value={name} placeholder={t.placeholder} onChange={(e) => (setName(e.target.value), setError(undefined))} />}
           </Field>
           <label className="flex flex-col gap-1.5 text-sm font-medium text-ink">
-            How often
+            {t.howOften}
             <select
               value={target}
               onChange={(e) => setTarget(Number(e.target.value))}
               className="h-10 rounded-md bg-raised px-3 text-sm font-normal text-ink ring-1 ring-control ring-inset"
             >
-              <option value={7}>Every day</option>
+              <option value={7}>{t.everyDay}</option>
               {[1, 2, 3, 4, 5, 6].map((n) => (
                 <option key={n} value={n}>
-                  {n}× a week
+                  {t.perWeek(n)}
                 </option>
               ))}
             </select>
           </label>
           <fieldset>
-            <legend className="mb-2 text-sm font-medium text-ink">Color</legend>
+            <legend className="mb-2 text-sm font-medium text-ink">{t.color}</legend>
             <div className="flex gap-1.5">
               {PROJECT_COLORS.map((c) => (
                 <button
                   type="button"
                   key={c.value}
-                  aria-label={c.label}
+                  aria-label={tr.projectForm.colors[c.value]}
                   aria-pressed={color === c.value}
                   onClick={() => setColor(c.value)}
                   className={cn("grid size-8 place-items-center rounded-md ring-1 ring-line ring-inset", color === c.value && "ring-2 ring-ink")}
@@ -353,7 +356,7 @@ function HabitDialog({ open, onOpenChange, habit }: { open: boolean; onOpenChang
             </div>
           </fieldset>
           <Button type="submit" variant="primary" className="self-start">
-            {habit ? "Save" : "Add habit"}
+            {habit ? t.save : t.add}
           </Button>
         </form>
       </DialogContent>
@@ -366,9 +369,10 @@ export function TodayHabits() {
   const { today } = useAppUI();
   const habits = useHabits().data ?? [];
   const actions = useHabitActions();
+  const t = useT().habits;
   if (!habits.length) return null;
   return (
-    <section aria-label="Habits today" className="mb-8 flex flex-wrap items-center gap-2">
+    <section aria-label={t.todayStrip} className="mb-8 flex flex-wrap items-center gap-2">
       {habits.map((h) => {
         const done = h.checks.includes(today);
         return (

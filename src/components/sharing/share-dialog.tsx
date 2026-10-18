@@ -13,14 +13,11 @@ import { api, ApiError } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { getCurrentUserId } from "@/lib/data";
 import type { Member, Role } from "@/lib/types";
+import { useT } from "@/i18n/client";
+import { m } from "@/i18n/catalogs";
 
-const ROLE_HINT: Record<Exclude<Role, "owner">, string> = {
-  editor: "Add, change and complete tasks",
-  commenter: "Read and comment",
-  viewer: "Read only",
-};
-const label = (r: Role) => r[0].toUpperCase() + r.slice(1);
-const fail = (e: unknown) => toast(e instanceof ApiError ? e.message : "Something went wrong. Try again.");
+const label = (r: Role) => m().share.roles[r];
+const fail = (e: unknown) => toast(e instanceof ApiError ? e.message : m().share.tryAgain);
 
 export const useMembers = (projectId: string | null | undefined, enabled = true) =>
   useQuery({ queryKey: ["members", projectId], queryFn: () => api.members(projectId!), enabled: !!projectId && enabled, staleTime: 60_000 });
@@ -40,10 +37,11 @@ export function ShareButton({ projectId, projectName, memberCount }: { projectId
   const [open, setOpen] = useState(false);
   const q = useMembers(projectId, open || memberCount > 1);
   const others = (q.data?.members ?? []).slice(0, 3);
+  const t = useT().share;
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="sm" aria-label={memberCount > 1 ? `Shared with ${memberCount - 1} ${memberCount === 2 ? "person" : "people"}` : "Share project"}>
+        <Button variant="ghost" size="sm" aria-label={memberCount > 1 ? t.sharedWith(memberCount - 1) : t.shareProject}>
           {memberCount > 1 && others.length ? (
             <span className="flex -space-x-2">
               {others.map((m) => (
@@ -53,10 +51,10 @@ export function ShareButton({ projectId, projectName, memberCount }: { projectId
           ) : (
             <Icon icon={Users} />
           )}
-          Share
+          {t.share}
         </Button>
       </DialogTrigger>
-      <DialogContent title={`Share “${projectName}”`} description="Everyone here sees every task in this project." className="max-w-lg">
+      <DialogContent title={t.title(projectName)} description={t.description} className="max-w-lg">
         {q.data ? <ShareBody projectId={projectId} data={q.data} onLeft={() => setOpen(false)} /> : <div className="skeleton h-24" />}
       </DialogContent>
     </Dialog>
@@ -72,6 +70,7 @@ function ShareBody({ projectId, data, onLeft }: { projectId: string; data: Await
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const refresh = () => qc.invalidateQueries({ queryKey: ["members", projectId] });
+  const t = useT().share;
 
   const copy = async (text: string) => {
     await navigator.clipboard.writeText(text).catch(() => {});
@@ -89,7 +88,7 @@ function ShareBody({ projectId, data, onLeft }: { projectId: string; data: Await
             if (!email.trim()) return;
             try {
               await api.invite(projectId, { email: email.trim(), role });
-              toast(`Invitation sent to ${email.trim()}.`);
+              toast(t.inviteSent(email.trim()));
               setEmail("");
               refresh();
             } catch (err) {
@@ -98,22 +97,22 @@ function ShareBody({ projectId, data, onLeft }: { projectId: string; data: Await
           }}
         >
           <label htmlFor="invite-email" className="text-sm font-medium text-ink">
-            Invite by email
+            {t.inviteByEmail}
           </label>
           <div className="flex flex-wrap gap-2">
             <Input id="invite-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="sam@example.com" className="min-w-0 flex-1" />
             <RoleSelect value={role} onChange={setRole} />
             <Button type="submit" variant="primary" disabled={!email.trim()}>
-              <Icon icon={UserPlus} /> Invite
+              <Icon icon={UserPlus} /> {t.invite}
             </Button>
           </div>
-          <p className="text-xs text-ink-3">{ROLE_HINT[role]}. The link only works for that address and expires in 14 days.</p>
+          <p className="text-xs text-ink-3">{t.linkRule(t.roleHints[role])}</p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             {link ? (
               <>
                 <code className="min-w-0 flex-1 truncate rounded-sm bg-sunken px-2 py-1.5 font-mono text-2xs text-ink-2">{link}</code>
                 <Button type="button" size="sm" onClick={() => void copy(link)}>
-                  <Icon icon={copied ? Check : Copy} size="xs" /> {copied ? "Copied" : "Copy"}
+                  <Icon icon={copied ? Check : Copy} size="xs" /> {copied ? t.copied : t.copy}
                 </Button>
               </>
             ) : (
@@ -132,15 +131,15 @@ function ShareBody({ projectId, data, onLeft }: { projectId: string; data: Await
                   }
                 }}
               >
-                <Icon icon={Link2} size="xs" /> Create a one-time invite link instead
+                <Icon icon={Link2} size="xs" /> {t.oneTimeLink}
               </Button>
             )}
           </div>
         </form>
       )}
 
-      <section aria-label="Members">
-        <h3 className="mb-2 font-mono text-2xs tracking-wider text-ink-3 uppercase">People</h3>
+      <section aria-label={t.members}>
+        <h3 className="mb-2 font-mono text-2xs tracking-wider text-ink-3 uppercase">{t.people}</h3>
         <ul className="divide-y divide-line border-y border-line">
           {data.members.map((m) => (
             <MemberRow key={m.userId} m={m} projectId={projectId} canManage={isOwner && m.role !== "owner"} onChange={refresh} />
@@ -149,13 +148,13 @@ function ShareBody({ projectId, data, onLeft }: { projectId: string; data: Await
             <li key={i.id} className="flex items-center gap-3 py-2.5 text-sm">
               <Avatar name={i.email ?? "?"} className="opacity-60" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-ink-2">{i.email ?? "Invite link"}</p>
-                <p className="text-xs text-ink-3">Invited as {i.role} · not accepted yet</p>
+                <p className="truncate text-ink-2">{i.email ?? t.inviteLink}</p>
+                <p className="text-xs text-ink-3">{t.invitedAs(label(i.role).toLowerCase())}</p>
               </div>
               <Button
                 size="icon-sm"
                 variant="ghost"
-                aria-label="Revoke invitation"
+                aria-label={t.revoke}
                 onClick={async () => {
                   await api.revokeInvite(i.id).then(refresh, fail);
                   if (link === i.url) setLink(null);
@@ -178,13 +177,13 @@ function ShareBody({ projectId, data, onLeft }: { projectId: string; data: Await
               onLeft();
               qc.invalidateQueries();
               router.push("/inbox");
-              toast("You left the project.");
+              toast(t.left);
             } catch (err) {
               fail(err);
             }
           }}
         >
-          <Icon icon={LogOut} /> Leave project
+          <Icon icon={LogOut} /> {t.leave}
         </Button>
       )}
     </div>
@@ -192,6 +191,7 @@ function ShareBody({ projectId, data, onLeft }: { projectId: string; data: Await
 }
 
 function MemberRow({ m, projectId, canManage, onChange }: { m: Member; projectId: string; canManage: boolean; onChange: () => void }) {
+  const t = useT().share;
   return (
     <li className="flex items-center gap-3 py-2.5 text-sm">
       <Avatar name={m.name} />
@@ -202,7 +202,7 @@ function MemberRow({ m, projectId, canManage, onChange }: { m: Member; projectId
       {canManage ? (
         <>
           <RoleSelect value={m.role as Exclude<Role, "owner">} onChange={(r) => void api.setRole(projectId, m.userId, r).then(onChange, fail)} />
-          <Button size="icon-sm" variant="ghost" aria-label={`Remove ${m.name}`} onClick={() => void api.removeMember(projectId, m.userId).then(onChange, fail)}>
+          <Button size="icon-sm" variant="ghost" aria-label={t.remove(m.name)} onClick={() => void api.removeMember(projectId, m.userId).then(onChange, fail)}>
             <Icon icon={X} size="xs" />
           </Button>
         </>
@@ -214,12 +214,13 @@ function MemberRow({ m, projectId, canManage, onChange }: { m: Member; projectId
 }
 
 function RoleSelect({ value, onChange }: { value: Exclude<Role, "owner">; onChange: (r: Exclude<Role, "owner">) => void }) {
+  const t = useT().share;
   return (
     <select
-      aria-label="Role"
+      aria-label={t.role}
       value={value}
       onChange={(e) => onChange(e.target.value as Exclude<Role, "owner">)}
-      title={ROLE_HINT[value]}
+      title={t.roleHints[value]}
       className="h-10 rounded-md bg-raised px-2 text-sm text-ink ring-1 ring-control ring-inset"
     >
       {(["editor", "commenter", "viewer"] as const).map((r) => (
