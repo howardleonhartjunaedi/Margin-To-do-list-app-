@@ -74,7 +74,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     throw new ApiError(m().common.offlineNotSaved, 0);
   }
   if (res.status === 401) {
-    window.location.href = `/sign-in?reauth=1&next=${encodeURIComponent(location.pathname)}`;
+    window.location.href = `/session-ended?next=${encodeURIComponent(location.pathname)}`;
     throw new ApiError(m().common.sessionEnded, 401);
   }
   const data = await res.json().catch(() => null);

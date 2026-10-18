@@ -26,7 +26,10 @@ export function proxy(req: NextRequest) {
     const next = req.nextUrl.searchParams.get("next");
     // Only same-site paths: never bounce to another origin ("//evil.com" is protocol-relative).
     const safe = next && next.startsWith("/") && !next.startsWith("//") ? next : "/today";
-    return NextResponse.redirect(new URL(safe, req.url));
+    const res = NextResponse.redirect(new URL(safe, req.url));
+    // If the cookie turns out to be stale, /session-ended brings a front-page visitor back here.
+    if (FRONT.includes(pathname)) res.cookies.set("margin-from-front", "1", { path: "/", maxAge: 10, httpOnly: true, sameSite: "lax" });
+    return res;
   }
   // The front page is prerendered once per language; "/" shows the visitor's, keeping the URL.
   if (pathname === "/") {

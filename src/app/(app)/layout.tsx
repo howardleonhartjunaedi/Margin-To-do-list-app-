@@ -11,7 +11,7 @@ import { getSettings } from "@/server/reminders";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
-  if (!session) redirect("/sign-in?reauth=1");
+  if (!session) redirect("/session-ended");
   const locale = await requestLocale((await getSettings(db, session.user.id)).locale);
 
   return (
