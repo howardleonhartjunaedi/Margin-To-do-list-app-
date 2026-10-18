@@ -9,6 +9,8 @@ export async function register() {
   if (process.env.NEXT_RUNTIME !== "nodejs") return;
   if (process.env.NEXT_PHASE === "phase-production-build") return;
   if (process.env.SCHEDULER === "off") return;
+  // No long-lived process to run it in: a scheduled function calls /api/cron/tick instead.
+  if (process.env.MARGIN_SERVERLESS === "1") return;
 
   const { db, dbReady } = await import("./server/db");
   const { startScheduler } = await import("./server/scheduler/start");

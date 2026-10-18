@@ -3,12 +3,13 @@ import { DeferredChrome } from "@/components/deferred-chrome";
 import { PreferencesProvider, preferencesBootScript } from "@/components/providers/preferences";
 import { display, displayItalic, mono, sans } from "./fonts";
 import "./globals.css";
+import { siteUrl } from "@/server/site";
 
 export const metadata: Metadata = {
   title: { default: "Margin", template: "%s · Margin" },
   description: "A calm, fast task manager.",
   // Absolute URLs for alternates and social cards. The front page is prerendered, so this is read at build time.
-  metadataBase: new URL(process.env.BETTER_AUTH_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(siteUrl() || "http://localhost:3000"),
   icons: { apple: "/icons/apple-touch-icon.png" },
   appleWebApp: { capable: true, title: "Margin", statusBarStyle: "default" },
 };

@@ -5,12 +5,16 @@ import { nextCookies } from "better-auth/next-js";
 import { headers } from "next/headers";
 import { cache } from "react";
 import { db, dbReady, schema } from "./db";
+import { siteUrl } from "./site";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
     provider: "pg",
-    schema: { user: schema.user, session: schema.session, account: schema.account, verification: schema.verification },
+    schema: { user: schema.user, session: schema.session, account: schema.account, verification: schema.verification, rateLimit: schema.rateLimit },
   }),
+  baseURL: siteUrl() || undefined,
+  // In the database, so the limit holds across server instances (and restarts).
+  rateLimit: { storage: "database" },
   emailAndPassword: {
     enabled: true,
     minPasswordLength: 8,

@@ -8,6 +8,7 @@ import { pushSubscription } from "../db/schema";
 import type { Channels, OutboundMessage } from "./core";
 import { publish } from "../events";
 import { m } from "@/i18n/catalogs";
+import { SERVERLESS } from "../site";
 
 /*
  * Real delivery channels.
@@ -54,7 +55,7 @@ function emailHtml(msg: OutboundMessage) {
 export function realChannels(db: Db): Channels {
   return {
     inApp(userId) {
-      publish([userId], { type: "notification" });
+      return publish(db, [userId], { type: "notification" });
     },
     async push(msg) {
       if (!ensureVapid()) return;
@@ -91,7 +92,9 @@ export function realChannels(db: Db): Channels {
         text: `${msg.title}\n\n${msg.body}\n\nOpen: ${msg.url}`,
         html: emailHtml(msg),
       });
-      if (!process.env.SMTP_URL && "message" in info) {
+      if (!process.env.SMTP_URL && SERVERLESS) {
+        console.warn(`[email] SMTP_URL isn't set; "${msg.title}" was not sent`);
+      } else if (!process.env.SMTP_URL && "message" in info) {
         const dir = path.join(/* turbopackIgnore: true */ process.cwd(), ".data", "outbox");
         await mkdir(dir, { recursive: true });
         const file = path.join(dir, `${Date.now()}-${msg.tag}.eml`);

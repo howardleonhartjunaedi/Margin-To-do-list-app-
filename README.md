@@ -55,16 +55,32 @@ docker compose --profile workers up -d
 
 Workers coordinate with `SKIP LOCKED`, so several can run at once.
 
+## Deploy to Netlify
+
+Netlify runs the whole app: pages and the API on Netlify Functions, reminders from a scheduled function (`netlify/functions/tick.mts`, every minute). It needs a hosted Postgres, since functions have no lasting disk.
+
+1. Push this repository to GitHub (or GitLab/Bitbucket) and choose **Add new site → Import an existing project** in Netlify. `netlify.toml` sets the build; nothing to fill in there.
+2. Database: add **Netlify DB** to the site (it sets `NETLIFY_DATABASE_URL`), or set `DATABASE_URL` to any Postgres — for Neon or Supabase, use the pooled connection string.
+3. Under **Site configuration → Environment variables**, set:
+   - `BETTER_AUTH_SECRET` and `CRON_SECRET`: two different values from `openssl rand -base64 32`
+   - `BETTER_AUTH_URL`: the site's address, e.g. `https://margin-yourname.netlify.app` (or your domain once added)
+   - optional: `VAPID_*` for push, `SMTP_URL` / `EMAIL_FROM` for email (without SMTP, emails are skipped), `ANTHROPIC_API_KEY` for AI
+4. Deploy. Each build applies new migrations first (`scripts/migrate.ts`).
+
+What differs from a single server: reminders can arrive up to a minute late, and changes from other devices or collaborators appear within about 15 seconds (open tabs poll) rather than instantly. The AI hourly limit is counted per function instance.
+
 ## Configuration
 
 | Variable | Purpose |
 | --- | --- |
 | `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` | Session signing secret and the public URL |
-| `DATABASE_URL` | Postgres connection. Unset: embedded PGlite in `.data/pglite` (or `PGLITE_DIR`) |
+| `DATABASE_URL` | Postgres connection (`NETLIFY_DATABASE_URL` also works). Unset: embedded PGlite in `.data/pglite` (or `PGLITE_DIR`) |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Web Push |
 | `SMTP_URL`, `EMAIL_FROM` | Email reminders, digest and invitations |
 | `SCHEDULER` | `in-process` (default) or `off` when running `npm run worker` |
 | `ANTHROPIC_API_KEY`, `AI_MODEL` | Optional AI suggestions (default model `claude-opus-5-5`) |
+| `CRON_SECRET` | Enables `/api/cron/tick` for scheduled-function hosts (Netlify) |
+| `REALTIME` | `stream` (server-sent events) or `poll`; fixed at build, defaults to `poll` on Netlify |
 | `WEBHOOKS_ALLOW_PRIVATE` | Allow webhooks to private addresses (local testing only) |
 
 ### AI suggestions

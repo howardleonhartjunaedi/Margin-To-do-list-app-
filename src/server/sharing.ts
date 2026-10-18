@@ -11,9 +11,10 @@ import { realChannels } from "./scheduler/channels";
 import { m } from "@/i18n/catalogs";
 import { isLocale, type Locale } from "@/i18n/locales";
 import { getSettings } from "@/server/reminders";
+import { siteUrl } from "./site";
 
 const INVITE_DAYS = 14;
-const baseUrl = () => process.env.BETTER_AUTH_URL ?? "";
+const baseUrl = siteUrl;
 
 export async function listMembers(userId: string, projectId: string) {
   const myRole = await requireProjectRole(db, userId, projectId, "viewer");

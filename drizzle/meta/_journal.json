@@ -43,6 +43,13 @@
       "when": 1792294262272,
       "tag": "0005_locale_and_ai",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792328687115,
+      "tag": "0006_serverless",
+      "breakpoints": true
     }
   ]
 }

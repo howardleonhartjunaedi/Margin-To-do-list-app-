@@ -42,7 +42,7 @@ export interface Channels {
   push(msg: OutboundMessage): Promise<void>;
   email(msg: OutboundMessage): Promise<void>;
   /** Tell the user's open tabs a notification arrived (optional; real-time). */
-  inApp?(userId: string): void;
+  inApp?(userId: string): void | Promise<void>;
 }
 
 export interface TickReport {
@@ -160,7 +160,7 @@ async function handleReminder(
       .where(eq(reminder.id, r.id));
   });
   report.sent++;
-  channels.inApp?.(r.userId);
+  await channels.inApp?.(r.userId);
 
   if (late) {
     report.late++;
@@ -227,7 +227,7 @@ async function runDigests(db: Db, now: Date, channels: Channels, baseUrl: string
     const body = lines.join("\n");
 
     await db.insert(notification).values({ userId: s.userId, kind: "digest", title, body, createdAt: now });
-    channels.inApp?.(s.userId);
+    await channels.inApp?.(s.userId);
     sent++;
     if (s.emailEnabled) {
       await channels

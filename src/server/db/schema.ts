@@ -1,6 +1,8 @@
 import { relations, sql } from "drizzle-orm";
 import {
   type AnyPgColumn,
+  bigint,
+  bigserial,
   boolean,
   date,
   index,
@@ -86,6 +88,14 @@ export const verification = pgTable(
   },
   (t) => [index().on(t.identifier)],
 );
+
+/** Sign-in and sign-up attempt counts, shared by every server instance (Better Auth's rateLimit model). */
+export const rateLimit = pgTable("rate_limit", {
+  id: text().primaryKey(),
+  key: text().notNull().unique(),
+  count: integer().notNull(),
+  lastRequest: bigint({ mode: "number" }).notNull(),
+});
 
 /* ------------------------------ Domain ------------------------------ */
 
@@ -545,3 +555,27 @@ export type TaskRow = typeof task.$inferSelect;
 export type ProjectRow = typeof project.$inferSelect;
 export type ReminderRow = typeof reminder.$inferSelect;
 export type SettingsRow = typeof userSettings.$inferSelect;
+
+/* ------------------------------ Real-time ------------------------------ */
+
+/**
+ * Recent change notices, for hosts where one server can't hold every open tab's stream
+ * (serverless): tabs poll for rows after the last id they saw. Pruned after a few minutes.
+ * Same fields as ChangeEvent in src/server/events.ts; no task contents.
+ */
+export const changeEvent = pgTable(
+  "change_event",
+  {
+    id: bigserial({ mode: "number" }).primaryKey(),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    type: text().notNull(),
+    entityId: text(),
+    taskId: text(),
+    projectId: text(),
+    origin: text(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index().on(t.userId, t.id), index().on(t.createdAt)],
+);

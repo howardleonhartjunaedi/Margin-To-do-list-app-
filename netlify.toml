@@ -1,0 +1,12 @@
+# Netlify builds the full app (Next.js runs on Netlify Functions). Set the environment
+# variables listed in README.md → "Deploy to Netlify" before the first deploy.
+[build]
+  command = "npx tsx scripts/migrate.ts && npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+# netlify/functions/tick.mts runs the reminder scheduler every minute.
+[functions]
+  directory = "netlify/functions"

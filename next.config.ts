@@ -5,6 +5,13 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // The Docker image runs Next's self-contained server (see Dockerfile); local `next start` doesn't need it.
   output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
+  // Read through src/server/site.ts. Netlify sets NETLIFY and URL during its build; with no
+  // long-lived process there, reminders run from a scheduled function and tabs poll for changes.
+  env: {
+    MARGIN_SERVERLESS: process.env.NETLIFY ? "1" : "",
+    MARGIN_SITE_URL: process.env.BETTER_AUTH_URL ?? process.env.URL ?? "",
+    NEXT_PUBLIC_REALTIME: process.env.REALTIME ?? (process.env.NETLIFY ? "poll" : "stream"),
+  },
   // Migrations are read from ./drizzle at runtime, which makes file tracing pull in the whole
   // project. Keep local data, secrets and dev-only files out of the server bundle.
   outputFileTracingExcludes: {

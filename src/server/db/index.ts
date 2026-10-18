@@ -7,13 +7,15 @@ import { migrate as migratePostgres } from "drizzle-orm/postgres-js/migrator";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import postgres from "postgres";
+import { SERVERLESS } from "../site";
 import * as schema from "./schema";
 
 /*
  * One Postgres dialect everywhere:
  *  - DATABASE_URL set   → a real Postgres server (production, Docker)
  *  - DATABASE_URL unset → embedded PGlite in .data/pglite or PGLITE_DIR (local dev, nothing to install)
- * Migrations in ./drizzle run once per process before the first query.
+ * Migrations in ./drizzle run once per process before the first query — except on serverless
+ * hosts, where the build runs them (scripts/migrate.ts) instead of every cold start.
  */
 
 // Runtime paths: the turbopackIgnore hints stop file tracing from copying the project (and the local
@@ -21,12 +23,17 @@ import * as schema from "./schema";
 const migrationsFolder = path.join(/* turbopackIgnore: true */ process.cwd(), "drizzle");
 
 function create() {
-  const url = process.env.DATABASE_URL;
+  // NETLIFY_DATABASE_URL: set by Netlify DB (Neon) when it's added to the site.
+  const url = process.env.DATABASE_URL ?? process.env.NETLIFY_DATABASE_URL;
   if (url) {
-    const client = postgres(url, { max: 10 });
+    // Transaction-mode poolers (Neon's -pooler host, Supabase's pooler) can't keep prepared statements.
+    const pooled = /-pooler.|pooler.supabase.com/.test(url);
+    // Each serverless instance serves one request at a time; a few connections is plenty.
+    const client = postgres(url, { max: SERVERLESS ? 3 : 10, prepare: !pooled });
     const db = drizzlePostgres({ client, schema, casing: "snake_case" });
-    return { db, ready: migratePostgres(db, { migrationsFolder }) };
+    return { db, ready: SERVERLESS ? Promise.resolve() : migratePostgres(db, { migrationsFolder }) };
   }
+  if (SERVERLESS) throw new Error("DATABASE_URL is required here: the embedded database needs a disk that lasts between requests.");
   // PGLITE_DIR lets a second local server (e.g. a production build under test) use its own
   // folder: PGlite allows only one process per data directory.
   const dir = path.resolve(/* turbopackIgnore: true */ process.cwd(), process.env.PGLITE_DIR ?? [".data", "pglite"].join(path.sep)); // (built at runtime so the tracer leaves it alone)

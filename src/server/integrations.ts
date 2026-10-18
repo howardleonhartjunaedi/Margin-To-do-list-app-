@@ -12,8 +12,9 @@ import { habit, habitCheck, label, project, projectMember, savedFilter, task, ta
 import { ClientError } from "./errors";
 import { publish } from "./events";
 import { getSettings } from "./reminders";
+import { siteUrl } from "./site";
 
-const baseUrl = () => process.env.BETTER_AUTH_URL ?? "";
+const baseUrl = siteUrl;
 
 /* ------------------------------ iCal feed ------------------------------ */
 
@@ -372,6 +373,6 @@ export async function importData(userId: string, input: { format: "json" | "csv"
     for (let i = 0; i < links.length; i += 1000) await db.insert(taskLabel).values(links.slice(i, i + 1000)).onConflictDoNothing();
   }
 
-  publish([userId], { type: "project" });
+  await publish(db, [userId], { type: "project" });
   return { ...summary, imported: true };
 }
