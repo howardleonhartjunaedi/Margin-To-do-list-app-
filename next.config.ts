@@ -9,8 +9,9 @@ const nextConfig: NextConfig = {
   // long-lived process there, reminders run from a scheduled function and tabs poll for changes.
   env: {
     MARGIN_SERVERLESS: process.env.NETLIFY ? "1" : "",
-    // No database on Netlify (or PREVIEW=1): a look-only build — front page and Try it, no accounts.
-    MARGIN_PREVIEW: process.env.PREVIEW === "1" || (process.env.NETLIFY && !process.env.DATABASE_URL && !process.env.NETLIFY_DATABASE_URL) ? "1" : "",
+    // No database on Netlify (or DEMO=1): the browser demo — one public demo account whose data
+    // lives in each visitor's tab (src/demo). Run scripts/build-demo.mjs before the build.
+    NEXT_PUBLIC_DEMO: process.env.DEMO === "1" || (process.env.NETLIFY && !process.env.DATABASE_URL && !process.env.NETLIFY_DATABASE_URL) ? "1" : "",
     MARGIN_SITE_URL: process.env.BETTER_AUTH_URL ?? process.env.URL ?? "",
     NEXT_PUBLIC_REALTIME: process.env.REALTIME ?? (process.env.NETLIFY ? "poll" : "stream"),
   },

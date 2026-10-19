@@ -29,10 +29,12 @@ const auth: Messages["auth"] = {
     signIn: "Tidak bisa masuk. Coba lagi.",
     signUp: "Akun tidak bisa dibuat. Coba lagi.",
   },
-  preview: {
-    title: "Pendaftaran belum dibuka.",
-    body: "Ini pratinjau Margin. Jelajahi halaman depan dan coba tambah cepat di browser Anda — pendaftaran menyusul.",
-    tryIt: "Coba tambah cepat",
+  demo: {
+    hint: "Ini demo. Masuk dengan akun di bawah — semuanya berjalan di browser Anda dan kembali seperti semula saat dimuat ulang.",
+    wrong: "Di demo, masuk sebagai demo@margin.com dengan kata sandi margindemo.",
+    title: "Ini demo.",
+    body: "Tidak ada pendaftaran akun baru di sini. Masuk dengan akun demo untuk mencoba semuanya — berjalan di browser Anda, dan tidak ada yang disimpan.",
+    cta: "Masuk ke demo",
     back: "Kembali ke halaman depan",
   },
   aside: ["Catat.", "Beri tanggal.", "Kerjakan", ", lalu lupakan."],

@@ -6,8 +6,8 @@
 /** Serverless host (Netlify): no long-lived process, no writable disk, many short-lived instances. */
 export const SERVERLESS = process.env.MARGIN_SERVERLESS === "1";
 
-/** Look-only build with no database: the front page works, accounts don't exist. */
-export const PREVIEW = process.env.MARGIN_PREVIEW === "1";
+/** Browser demo build (no database): the API runs in each visitor's tab; see src/demo. */
+export const DEMO = process.env.NEXT_PUBLIC_DEMO === "1";
 
 /** The public origin, without a trailing slash: BETTER_AUTH_URL, else the one the host assigned. */
 export const siteUrl = () => (process.env.BETTER_AUTH_URL ?? process.env.MARGIN_SITE_URL ?? "").replace(/\/$/, "");

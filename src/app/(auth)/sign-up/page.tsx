@@ -1,13 +1,13 @@
 import { localizedTitle } from "@/i18n/server";
 import { Suspense } from "react";
 import { AuthForm } from "@/components/app/auth-form";
-import { PreviewNotice } from "@/components/app/preview-notice";
-import { PREVIEW } from "@/server/site";
+import { DemoNotice } from "@/components/app/demo-notice";
+import { DEMO } from "@/server/site";
 
 export const generateMetadata = localizedTitle((t) => t.auth.signUpTitle);
 
 export default function Page() {
-  if (PREVIEW) return <PreviewNotice />;
+  if (DEMO) return <DemoNotice />;
   return (
     <Suspense>
       <AuthForm mode="sign-up" />

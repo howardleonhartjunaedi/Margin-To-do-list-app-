@@ -30,6 +30,7 @@ import { ensureServiceWorker } from "@/lib/sw";
 import { replayOutbox, resetOfflineNotice } from "@/lib/data";
 import { currentLocale } from "@/i18n/runtime";
 import { rememberLocale } from "@/i18n/cookie";
+import { DEMO } from "@/lib/demo";
 
 type User = { id: string; name: string; email: string };
 
@@ -126,7 +127,8 @@ function Shell({ user, children }: { user: User; children: React.ReactNode }) {
       <QuickAddDialog />
       <TaskDetailSheet />
       <NotificationWatcher />
-      <Realtime />
+      {/* The demo has no server to hear changes from; its one tab is the whole world. */}
+      {!DEMO && <Realtime />}
       <CommandPalette />
       <ShortcutsDialog />
       <FirstRunSync />

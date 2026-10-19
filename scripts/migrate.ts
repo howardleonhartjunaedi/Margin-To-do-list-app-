@@ -8,8 +8,8 @@ import postgres from "postgres";
 // Netlify DB (Neon) provides the direct, unpooled URL too, which suits schema changes best.
 const url = process.env.NETLIFY_DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL ?? process.env.NETLIFY_DATABASE_URL;
 if (!url) {
-  if (process.env.NETLIFY || process.env.PREVIEW === "1") {
-    console.log("[migrate] No database configured: building a preview (front page and Try it; no accounts).");
+  if (process.env.NETLIFY || process.env.DEMO === "1") {
+    console.log("[migrate] No database configured: building the browser demo (demo account only, nothing saved).");
     process.exit(0);
   }
   console.error("[migrate] Set DATABASE_URL (or add Netlify DB) — Margin needs a Postgres database here.");

@@ -27,10 +27,12 @@ export default {
     signIn: "Couldn’t sign you in. Try again.",
     signUp: "Couldn’t create your account. Try again.",
   },
-  preview: {
-    title: "Accounts aren’t open yet.",
-    body: "This is a preview of Margin. Look around the front page and try quick add in your browser — signing up comes later.",
-    tryIt: "Try quick add",
+  demo: {
+    hint: "This is a demo. Sign in with the account below — everything runs in your browser and resets when you reload.",
+    wrong: "In the demo, sign in as demo@margin.com with the password margindemo.",
+    title: "This is a demo.",
+    body: "There are no new accounts here. Sign in with the demo account to try everything — it runs in your browser, and nothing is saved.",
+    cta: "Sign in to the demo",
     back: "Back to the front page",
   },
   aside: ["Write it down.", "Give it a day.", "Do it", ", then forget it."],

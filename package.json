@@ -16,7 +16,8 @@
     "smoke:reminders": "node scripts/smoke-reminders.mjs",
     "smoke:views": "node scripts/smoke-views.mjs",
     "smoke:productivity": "node scripts/smoke-productivity.mjs",
-    "smoke:sharing": "node scripts/smoke-sharing.mjs"
+    "smoke:sharing": "node scripts/smoke-sharing.mjs",
+    "demo:build": "node scripts/build-demo.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.135.0",

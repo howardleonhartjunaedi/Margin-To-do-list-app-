@@ -9,6 +9,8 @@ import { Field, Input } from "@/components/ui/input";
 import type { Messages } from "@/i18n/catalogs";
 import { useT } from "@/i18n/client";
 import { signIn, signUp } from "@/lib/auth-client";
+import { DEMO, startDemo } from "@/lib/demo";
+import { DEMO_EMAIL, DEMO_PASSWORD } from "@/demo/user";
 
 export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   const router = useRouter();
@@ -27,6 +29,18 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     const password = String(f.get("password"));
     setPending(true);
     setError(null);
+    if (DEMO) {
+      // The demo's one account; its data lives in this tab (src/demo).
+      if (email.toLowerCase() !== DEMO_EMAIL || password !== DEMO_PASSWORD) {
+        setPending(false);
+        setError(t.demo.wrong);
+        return;
+      }
+      startDemo();
+      router.replace(next);
+      router.refresh();
+      return;
+    }
     const res =
       mode === "sign-in"
         ? await signIn.email({ email, password })
@@ -44,14 +58,22 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   return (
     <>
       <h1 className="font-display text-4xl text-ink">{signingUp ? t.startList : t.welcomeBack}</h1>
-      <p className="mt-3 text-sm text-ink-2">{signingUp ? t.syncDevices : reauth ? t.sessionEnded : t.seeToday}</p>
+      <p className="mt-3 text-sm text-ink-2">{DEMO ? t.demo.hint : signingUp ? t.syncDevices : reauth ? t.sessionEnded : t.seeToday}</p>
 
       <form onSubmit={onSubmit} className="mt-8 flex flex-col gap-5" noValidate>
         {signingUp && <Field label={t.name}>{(p) => <Input {...p} name="name" autoComplete="name" placeholder={t.namePlaceholder} />}</Field>}
-        <Field label={t.email}>{(p) => <Input {...p} name="email" type="email" required autoComplete="email" inputMode="email" />}</Field>
+        <Field label={t.email}>{(p) => <Input {...p} name="email" type="email" required autoComplete="email" inputMode="email" defaultValue={DEMO ? DEMO_EMAIL : undefined} />}</Field>
         <Field label={t.password} hint={signingUp ? t.passwordHint : undefined}>
           {(p) => (
-            <Input {...p} name="password" type="password" required minLength={8} autoComplete={signingUp ? "new-password" : "current-password"} />
+            <Input
+              {...p}
+              name="password"
+              type={DEMO ? "text" : "password"}
+              required
+              minLength={8}
+              autoComplete={signingUp ? "new-password" : "current-password"}
+              defaultValue={DEMO ? DEMO_PASSWORD : undefined}
+            />
           )}
         </Field>
         {error && <ErrorState message={error} />}

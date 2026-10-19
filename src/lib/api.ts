@@ -43,6 +43,7 @@ export interface ImportSummary {
 import type { CreateTaskInput, UpdateTaskInput } from "./validation";
 import { m } from "@/i18n/catalogs";
 import { currentLocale } from "@/i18n/runtime";
+import { DEMO, demoFetch } from "./demo";
 
 export interface TriageSuggestion {
   taskId: string;
@@ -69,7 +70,8 @@ export const clientId = typeof crypto !== "undefined" && "randomUUID" in crypto 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(path, { ...init, headers: { "content-type": "application/json", "x-client-id": clientId, ...init?.headers } });
+    const req = { ...init, headers: { "content-type": "application/json", "x-client-id": clientId, ...init?.headers } };
+    res = DEMO ? await demoFetch(path, req) : await fetch(path, req);
   } catch {
     throw new ApiError(m().common.offlineNotSaved, 0);
   }

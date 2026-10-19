@@ -1,7 +1,8 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse, type NextRequest } from "next/server";
 import { isLocale, LOCALES, matchLocale } from "@/i18n/locales";
-import { PREVIEW } from "@/server/site";
+import { DEMO_COOKIE } from "@/demo/user";
+import { DEMO } from "@/server/site";
 
 /*
  * Optimistic routing on the session cookie only (no DB hit here).
@@ -15,10 +16,11 @@ const FRONT = ["/", ...LOCALES.map((l) => `/${l}`)];
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   if (pathname.startsWith("/api/")) {
-    // A preview build has no database behind the API: say so instead of failing on each call.
-    return PREVIEW ? Response.json({ error: "This is a preview: accounts aren’t available." }, { status: 503 }) : NextResponse.next();
+    // In the demo the API runs in the browser; nothing on the server can answer.
+    return DEMO ? Response.json({ error: "This is a demo: it runs in your browser." }, { status: 503 }) : NextResponse.next();
   }
-  const signedIn = Boolean(getSessionCookie(req));
+  // The demo is "signed in" by a plain cookie; there's no session to check.
+  const signedIn = DEMO ? req.cookies.has(DEMO_COOKIE) : Boolean(getSessionCookie(req));
 
   if (!signedIn && APP.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
     const url = new URL("/sign-in", req.url);
@@ -27,7 +29,8 @@ export function proxy(req: NextRequest) {
   }
   // Signed-in users go straight to Today. `reauth` means the cookie exists but the
   // session behind it is gone (the app layout sent us here) — let them sign in.
-  if (signedIn && !req.nextUrl.searchParams.has("reauth") && (FRONT.includes(pathname) || AUTH.includes(pathname))) {
+  // (The demo keeps its front page reachable: it's the showcase.)
+  if (signedIn && !req.nextUrl.searchParams.has("reauth") && ((FRONT.includes(pathname) && !DEMO) || AUTH.includes(pathname))) {
     const next = req.nextUrl.searchParams.get("next");
     // Only same-site paths: never bounce to another origin ("//evil.com" is protocol-relative).
     const safe = next && next.startsWith("/") && !next.startsWith("//") ? next : "/today";
